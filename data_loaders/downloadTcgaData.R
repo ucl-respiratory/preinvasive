@@ -46,17 +46,65 @@ downloadTcgaData <- function(
   files <- gsub(".gz$", "", files)
   
   # Read into R
-  for(i in 1:length(files)){
-    print(paste("Parsing file", i, "/", length(files)))
-    s <- read.table(files[i], sep="\t", header=F)
-    colnames(s) <- c("gene", as.character(files[i]))
-    if(i == 1){
-      alldata <- s
-    }else{
-      alldata <- merge(alldata, s, by="gene")
+  # For Copy Number data map to bands. Otherwise merge by gene.
+  if(d_type == "Copy Number Segment"){
+    library(httr)
+    ensembl_url <- "http://rest.ensembl.org/info/assembly/homo_sapiens?content-type=application/json&bands=1"
+    req <- GET(url=ensembl_url)
+    # JSON data stored in content(req)
+    # Turn this into a data object with each band represented by chromosome, name, start, end
+    bands <- c()
+    chroms <- c()
+    ids <- c()
+    starts <- c()
+    ends <- c()
+    for(reg in content(req)[["top_level_region"]]){
+      for(band in reg$bands){
+        chroms <- c(chroms, band$seq_region_name)
+        ids <- c(ids, band$id)
+        starts <- c(starts, band$start)
+        ends <- c(ends, band$end)
+        bands <- c(bands, c(band$seq_region_name, band$id, band$start, band$end))
+      }
     }
+    
+    bands <- data.frame(chrom=as.character(chroms), id=ids, start=starts, end=ends)
+    rownames(bands) <- paste(bands$chrom, bands$id, sep="")
+    
+    tcga.cnas.bands <- data.frame(row.names = rownames(bands))
+    
+    # Combine files into a large matrix
+    for(i in 1:length(files)){
+      if(i %% 10 == 0){print(paste("Parsing file", i, "/", length(files)))}
+      s <- read.table(files[i], sep="\t", header=T, stringsAsFactors = F)
+      
+      # For each band, find CN segments which overlap and take the mean Segment_Mean of those bands
+      cns <- unlist(lapply(1:dim(bands)[1], function(x){
+        segs <- s[which(s$Chromosome == bands$chrom[x] & s$End > bands$start[x] & s$Start < bands$end[x]), "Segment_Mean"]
+        if(length(segs) > 0){
+          return(mean(segs))
+        }else{
+          return(NA)
+        }
+      }))
+      tcga.cnas.bands[,files[i]] <- cns
+    }
+    alldata <- tcga.cnas.bands
+    
+  }else{
+    for(i in 1:length(files)){
+      print(paste("Parsing file", i, "/", length(files)))
+      s <- read.table(files[i], sep="\t", header=F)
+      colnames(s) <- c("gene", as.character(files[i]))
+      if(i == 1){
+        alldata <- s
+      }else{
+        alldata <- merge(alldata, s, by="gene")
+      }
+    }
+    alldata.raw <- alldata # Just in case we make mistakes going forward...
   }
-  alldata.raw <- alldata # Just in case we make mistakes going forward...
+  
   
   pheno <- data.frame(
     name=files,
@@ -69,6 +117,7 @@ downloadTcgaData <- function(
   pheno$dose[which(cases$sample_type == "Primary Tumor")] <- 3
   pheno$dose[which(cases$sample_type == "Solid Tissue Normal")] <- 0
   
+  # For gene expression data, convert to gene symbols
   if(d_type == "Gene Expression Quantification"){
     # Convert rownames to gene name
     library(biomaRt)

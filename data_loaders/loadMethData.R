@@ -260,8 +260,23 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   
   # Included data set from Dutch group (van Boerdonk et al)
   source('./data_loaders/loadFromGEO.R')
-  x <- loadFromGEO("GSE45287", destdir = paste(data_cache, "cna/dutch", sep=""))
+  x <- loadFromGEO("GSE45287", destdir = paste(data_cache, "cna/dutch", sep=""), gene.col="CYTOBAND", bandAdjust=T)
+  dutch.bands <- x[[1]]
+  dutch.pheno <- x[[2]]
+  dutch.pheno$progression <- NA
+  dutch.pheno$progression[grep(x=dutch.pheno$characteristics_ch1.2, pattern="case$")] <- 1
+  dutch.pheno$progression[grep(x=dutch.pheno$characteristics_ch1.2, pattern="control$")] <- 0
   
-  save(cnas.band, cnas.pheno, file=cache_file_cna)
+  
+  # Include TCGA CNA data (relative CNA data)
+  cache_dir_cna <- paste(data_cache, "cna/tcga", sep="")
+  dir.create(cache_dir_cna, recursive = T, showWarnings = F)
+  x <- downloadTcgaData(d_type = "Copy Number Segment", w_type = "DNAcopy", cache_dir = cache_dir_cna)
+  tcga.cnas.bands <- x[[1]]
+  tcga.cnas.pheno <- x[[2]]
+  
+  
+  
+  save(cnas.band, cnas.pheno, dutch.bands, dutch.pheno, tcga.cnas.bands, tcga.cnas.pheno, file=cache_file_cna)
 }
 

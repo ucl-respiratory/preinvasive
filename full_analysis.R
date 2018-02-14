@@ -536,8 +536,8 @@ dev.off()
 ########################################################################################################
 # Extended Data Figure 7D-F - Methylation-derived Copy Number Predictive analyses
 ########################################################################################################
+
 # Include data from Dutch group (van Boerdonk et al)
-load('dutchCnaData.RData')
 pamr.cdata <- runComBat(cnas.band, dutch.bands)
 pamr.cdata <- cbind(pamr.cdata[[1]], pamr.cdata[[2]])
 pamr.cpheno <- rbind(
@@ -545,7 +545,7 @@ pamr.cpheno <- rbind(
   data.frame(name=rownames(dutch.pheno), progression=dutch.pheno$progression, train=0, source="Dutch")
 )
 
-# Reduce to DE bands:
+# Reduce to differentially expressed bands:
 pamr.cdata <- pamr.cdata[which(rownames(pamr.cdata) %in% rownames(cdiff)),]
 
 # Include TCGA relative data
@@ -583,13 +583,10 @@ set.seed(2)
 cna.pamr.trainfit <- pamr.train(cna.pamr.traindata)
 cna.pamr.mycv <- pamr.cv(cna.pamr.trainfit, cna.pamr.traindata)
 threshold <- max(cna.pamr.mycv$threshold[which(cna.pamr.mycv$error == min(cna.pamr.mycv$error))])
-# Manually choose threshold = 2.5 from experimentation:
-#threshold=2.5
+# Manually choose threshold 
 threshold=1.5
 
-pdf(paste(results_dir, 'Sup_Fig15_cna_prediction.pdf', sep=""))
-#cna.pamr.pred.d <- pamr.predict(cna.pamr.trainfit, newx=cna.pamr.traindata$x, type='posterior', threshold=threshold)
-#plot(cna.pamr.pred.d[,2], col=c("green", "red")[as.numeric(as.character(cna.pamr.traindata$y)) + 1], main="Discovery Set", ylab="Progression Score", ylim=c(0,1))
+pdf(paste(results_dir, 'Ext_Data7D-F_cna_prediction.pdf', sep=""))
 
 plot(cna.pamr.mycv$prob[,2,1], 
      col=c("green", "red")[as.numeric(as.character(cna.pamr.traindata$y)) + 1], 
