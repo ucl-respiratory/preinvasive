@@ -10,8 +10,11 @@
 ########################################################################################################
 
 if(!exists("tcga.mdata.all") | !exists("tcga.mpheno.all")){
-  message("ERROR: tcga.mdata.all not found. Please run data_loaders/loadMethData.R")
+  message("WARNING: tcga.mdata.all not found. Running data_loaders/loadMethData.R")
+  source('data_loaders/loadMethData.R')
 }
+
+library(pROC)
 
 # For plots:
 cols <- c("darkgreen", "green", "red", "orange")

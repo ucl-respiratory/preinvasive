@@ -11,13 +11,19 @@
 # TCGA data is large (~60Gb) and parsing these data is memory-intensive.
 ##########################################################################
 
+if(!exists("data_cache")){
+  data_cache <- "./data/"
+}
+
 cache_file <- paste(data_cache, "mdata.RData", sep="")
 cache_file_cna <- paste(data_cache, "cdata.RData", sep="")
 
 if(file.exists(cache_file) & file.exists(cache_file_cna)){
+  message("Loading cached methylation data")
   load(cache_file)
   load(cache_file_cna)
 }else{
+  message("No cached found - downloading all methylation data. This may take several hours and is best run on a cluster.")
   
   cache_dir <- paste(data_cache, "meth/geo", sep="")
   geo.file <- paste(cache_dir, "/meth.geo.data.tar", sep="")
