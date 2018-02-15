@@ -504,7 +504,7 @@ if(show.legends){
 }
 
 # COPD
-plot(pcfit$x[,1:2], col=c("blue", "red")[as.numeric(mpheno$COPD)],
+plot(pcfit$x[,1:2], col=c("blue", "red")[as.numeric(factor(mpheno$COPD, levels=c("NO", "YES")))],
      xlab=NA, ylab=NA,
      main=paste("COPD"))
 legend('bottom', col=c("blue", "red"), 
@@ -875,7 +875,9 @@ WriteXLS(
 ########################################################################################################
 # Extended Data Figure 9B - Methylation of NEK2-associated probe by group
 ########################################################################################################
-# TODO
+pdf(paste(results_dir, 'Ext_Data9B_methylation_of_NEK2_probe_by_group.pdf', sep=""))
+plotMethylationByGroup("cg17931972", "NEK2", legend.pos="topleft")
+dev.off()
 
 ########################################################################################################
 # Extended Data Figure 10 - Correlation of WGII with CIN gene expression
