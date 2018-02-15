@@ -121,8 +121,7 @@ mdiff.dose <- mdiff.dose$NumericVariable
 
 ##########################################################################
 # Figure 1: study design, not generated with R
-# Figure 2: based on genomic data, not included here
-# Figure 3: heatmaps and PCAs, included
+# Figure 2: based on genomic data, not included here (see genomic_analysis.Rmd)
 ##########################################################################
 
 ##########################################################################
@@ -333,7 +332,7 @@ dev.off()
 ########################################################################################################
 # To plot consistently we store data based on 10000 sample runs.
 # Code to generate this is in mhi_analysis.R
-load("resources/randomMvpV2AUCs10k.RData")
+load("resources/MHIsimulation10k.RData")
 
 # Plot for cancer vs control (with AUCs:)
 pdf(paste(results_dir, 'Fig4F_mhi_sample_histograms.pdf', sep=""))
@@ -345,18 +344,6 @@ for(size in c(2000)){
        xlab=paste("AUC for Cancer vs Control. Mean ", signif(auc.mean, 2), "(CI ", signif(auc.mean-2*auc.sd, 2), "-", signif(auc.mean+2*auc.sd, 2),")", sep=""))
 }
 dev.off()
-
-# Plot for Prog vs Reg (with AUCs:)
-pdf(paste(results_dir, 'Sup_figure_8_mhi_sample_histograms_pvr.pdf', sep=""))
-for(size in c(2000)){
-  auc.mean <- mean(aucs.all$pvr[which(aucs.all$size == size)])
-  auc.sd <- sd(aucs.all$pvr[which(aucs.all$size == size)])
-  hist(aucs.all$pvr[which(aucs.all$size == size)], 
-       main=paste("Prediction with random samples of", size, "probes"),
-       xlab=paste("AUC for Progressive vs Regressive CIS. Mean ", signif(auc.mean, 2), "(CI ", signif(auc.mean-2*auc.sd, 2), "-", signif(auc.mean+2*auc.sd, 2),")", sep=""))
-}
-dev.off()
-
 
 
 ########################################################################################################
@@ -816,7 +803,17 @@ dev.off()
 ########################################################################################################
 # Extended Data Figure 8 - Methylation Heterogeneity Index for PvR using Random Sampling
 ########################################################################################################
-# TODO
+# Plot for Prog vs Reg (with AUCs:)
+# As for fig 4F use pre-saved data for reproducibility
+pdf(paste(results_dir, 'Ext_Data8_mhi_sample_histograms_pvr.pdf', sep=""))
+for(size in c(2000)){
+  auc.mean <- mean(aucs.all$pvr[which(aucs.all$size == size)])
+  auc.sd <- sd(aucs.all$pvr[which(aucs.all$size == size)])
+  hist(aucs.all$pvr[which(aucs.all$size == size)], 
+       main=paste("Prediction with random samples of", size, "probes"),
+       xlab=paste("AUC for Progressive vs Regressive CIS. Mean ", signif(auc.mean, 2), "(CI ", signif(auc.mean-2*auc.sd, 2), "-", signif(auc.mean+2*auc.sd, 2),")", sep=""))
+}
+dev.off()
 
 ########################################################################################################
 # Extended Data Figure 9A - Methylation Pathway Analysis
