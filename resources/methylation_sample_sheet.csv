@@ -5,7 +5,7 @@ Experiment Name,Methylation experiment,,,,,,,,,,,,,,,,
 Date,08/11/2007,,,,,,,,,,,,,,,,
 ,,,,,,,,,,,,,,,,,
 [Data],,,,,,,,,,,,,,,,,
-Sample_Name,Sample_Well,Sample_Plate,Sample_Group,Pool_ID,Sentrix_ID,Sentrix_Position,Cohort,Sample_Type,Patient_ID,progression,Age.at.specimen.collected,Gender,COPD,Pack.years,Previous.Lung.CA.........No..0..Yes..1.,age_group,smoking_group
+Sample_Name,Sample_Well,Sample_Plate,Sample_Group,Pool_ID,Sentrix_ID,Sentrix_Position,Cohort,Sample_Type,Patient_ID,progression,Age.at.specimen.collected,Gender,COPD,Pack.years,Previous.Lung.CA,age_group,smoking_group
 X6_P,A01,Plate1,Progressive,1,7766130031,R05C02,D,Progressive,12,1,70,M,NO,60,1,70+,40-69
 X8_P,G01,Plate1,Progressive,1,7766130031,R01C01,D,Progressive,12,1,68,M,NO,60,1,60-69,40-69
 X10_P,H01,Plate1,Progressive,1,7766130031,R04C02,D,Progressive,12,1,70,M,NO,60,1,70+,40-69

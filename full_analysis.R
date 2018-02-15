@@ -442,24 +442,217 @@ dev.off()
 ########################################################################################################
 # Extended Data Figure 4C - Methylation-derived CNA Heatmap
 ########################################################################################################
-# TODO
+sig_bands <- cnas.band[rownames(cdiff[which(cdiff$fdr < 0.01),]),]
+
+c.annot <- data.frame(
+  pack.years=cnas.pheno$smoking_group,
+  age.group=cnas.pheno$age_group,
+  gender=cnas.pheno$Gender,
+  COPD=cnas.pheno$COPD,
+  status=c("Regressive", "Progressive")[cnas.pheno$progression+1]
+)
+c.annot_colors <- list(
+  status=c(Progressive="red", Regressive="green"),
+  pack.years=smoking_group_names,
+  age.group=age_group_names,
+  gender=c("F"="pink", "M"="blue"),
+  COPD=c("NO"="green", "YES"="red")
+)
+rownames(c.annot) <- colnames(sig_bands)
+
+pdf(paste(opdir, 'Ext_Data4C_cna_heatmap.pdf', sep=""))
+pheatmap(removeOutliers(sig_bands), cluster_rows=T, cluster_cols=T, scale="row", main=paste("Copy number top (",dim(sig_bands)[1]," bands)", sep=""),
+         annotation_col=c.annot, treeheight_row=0, treeheight_col = F, show_rownames=F, show_colnames=F,
+         annotation_colors=c.annot_colors,
+         color=hmcol, legend=T)
+dev.off()
 
 
 ########################################################################################################
 # Extended Data Figure 5A-F - Methylation PCAs
 ########################################################################################################
-# TODO
+pcfit <- prcomp(t(mdata))
+# Calculate p-values using multivariate ANOVA (all predictors are categorical)
+aovdata <- mpheno
+aovdata$pca <- pcfit$x[,1]
+myaov <- aov(pca ~ progression + smoking_group + COPD + Previous.Lung.CA.........No..0..Yes..1. + age_group + Gender + Slide, data=aovdata)
+pdf(paste(results_dir, 'Ext_Data5A-F_methylation_PCAs.pdf', sep=""))
+par(mfrow=c(1,1), xpd=T)
+inset <- c(0,-0.15)
+# Progression/Regression
+plot(pcfit$x[,1:2], col=c('blue', 'red', 'green')[as.numeric(factor(mpheno$Sample_Group, levels=c("Control", "Progressive", "Regressive")))],
+     xlab=NA, ylab=NA,
+     main=paste("Progression Status"))
+legend('bottom', col=c('red', 'green', 'blue'), 
+       legend=c('Prog.','Reg.', 'Cont.'), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[1]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# Smoking
+plot(pcfit$x[,1:2], col=as.character(smoking_group_names[mpheno$smoking_group]),
+     xlab=NA, ylab=NA,
+     main=paste("Smoking (pack years)"))
+legend('bottom', col=as.character(smoking_group_names), 
+       legend=names(smoking_group_names), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[2]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# COPD
+plot(pcfit$x[,1:2], col=c("blue", "red")[as.numeric(mpheno$COPD)],
+     xlab=NA, ylab=NA,
+     main=paste("COPD"))
+legend('bottom', col=c("blue", "red"), 
+       legend=c("No", "Yes"), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[3]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# Lung cancer history
+plot(pcfit$x[,1:2], col=c("blue", "red")[as.numeric(as.character(mpheno$Previous.Lung.CA.........No..0..Yes..1.))+1],
+     xlab=NA, ylab=NA,
+     main=paste("Previous lung cancer history"))
+legend('bottom', col=c("blue", "red"), 
+       legend=c("No", "Yes"), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[4]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# Age at Bronchoscopy
+plot(pcfit$x[,1:2], col=as.character(age_group_names[mpheno$age_group]),
+     xlab=NA, ylab=NA,
+     main=paste("Age at Bronchoscopy"))
+legend('bottom', col=as.character(age_group_names), 
+       legend=names(age_group_names), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[5]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# Gender
+plot(pcfit$x[,1:2], col=c("red", "blue")[as.numeric(factor(mpheno$Gender))],
+     xlab=NA, ylab=NA,
+     main=paste("Gender"))
+legend('bottom', col=c("red", "blue"), 
+       legend=c("Female", "Male"), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[6]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# Sentix ID
+plot(pcfit$x[,1:2], col=myPalette[as.numeric(factor(mpheno$Slide))],
+     xlab=NA, ylab=NA,
+     main=paste("Sentix ID"))
+legend('bottom', col=myPalette, 
+       legend=1:length(levels(factor(mpheno$Slide))), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[7]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+dev.off()
 
 ########################################################################################################
 # Extended Data Figure 5G-K - Gene Expression PCAs
 ########################################################################################################
-# TODO
+pcfit <- prcomp(t(gdata))
+aovdata <- gpheno
+aovdata$pca <- pcfit$x[,1]
+myaov <- aov(pca ~ progression + smoking_group + COPD + Prev.History.of.LC + age_group + Gender, data=aovdata)
+pdf(paste(results_dir, 'Ext_Data5G-K_gxn_PCAs.pdf', sep=""))
+par(mfrow=c(1,1), xpd=T)
+
+# Progression/Regression
+plot(pcfit$x[,1:2], col=c('red', 'green')[as.numeric(gpheno$progression) + 1],
+     xlab=NA, ylab=NA,
+     main=paste("Progression Status"))
+legend('bottom', col=c('red', 'green'), 
+       legend=c('Progressive','Regressive'), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[1]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# Smoking
+plot(pcfit$x[,1:2], col=as.character(smoking_group_names[gpheno$smoking_group]),
+     xlab=NA, ylab=NA,
+     main=paste("Smoking (pack years)"))
+legend('bottom', col=as.character(smoking_group_names), 
+       legend=names(smoking_group_names), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[2]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# COPD
+plot(pcfit$x[,1:2], col=c("blue", "red")[as.numeric(gpheno$COPD)],
+     xlab=NA, ylab=NA,
+     main=paste("COPD"))
+legend('bottom', col=c("blue", "red"), 
+       legend=c("No", "Yes"), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[3]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# Lung cancer history
+plot(pcfit$x[,1:2], col=c("blue", "red")[as.numeric(gpheno$Prev.History.of.LC)+1],
+     xlab=NA, ylab=NA,
+     main=paste("Previous lung cancer history"))
+legend('bottom', col=c("blue", "red"), 
+       legend=c("No", "Yes"), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[4]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# Age at Bronchoscopy
+plot(pcfit$x[,1:2], col=as.character(age_group_names[gpheno$age_group]),
+     xlab=NA, ylab=NA,
+     main=paste("Age at Bronchoscopy"))
+legend('bottom', col=as.character(age_group_names), 
+       legend=names(age_group_names), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[5]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+# Gender
+plot(pcfit$x[,1:2], col=c("red", "blue")[as.numeric(factor(gpheno$Gender))],
+     xlab=NA, ylab=NA,
+     main=paste("Gender"))
+legend('bottom', col=c("red", "blue"), 
+       legend=c("Female", "Male"), pch=1, horiz=T, 
+       bty="n", inset=inset)
+p <- summary(myaov)[[1]][["Pr(>F)"]][[6]]
+if(show.legends){
+  legend('bottomright', paste("ANOVA p=", signif(p, 2), sep=""))
+}
+
+dev.off()
 
 ########################################################################################################
 # Extended Data Figure 6 - misclassified lesions
 # Data not generated from R.
 ########################################################################################################
-
 
 ########################################################################################################
 # Extended Data Figure 7A-C - Methylation Predictive analyses
