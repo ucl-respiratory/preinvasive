@@ -4,6 +4,9 @@
 # Load gene expression and methylation data from NCBI GEO
 ##########################################################################
 
+# Auto-install dependencies
+source('install_dependencies.R')
+
 # Optionally change data_dir to set where data is downloaded to
 # This variable is required before sourcing the data_loader scripts
 data_cache <- "./data/"
