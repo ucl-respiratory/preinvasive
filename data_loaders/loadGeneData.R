@@ -6,27 +6,34 @@
 # gdata, gpheno (merged d and v sets)
 ##########################################################################
 
+if(!exists("data_cache")){
+  data_cache <- "./data/"
+}
+
 cache_file <- paste(data_cache, "gdata.RData", sep="")
 
 if(file.exists(cache_file)){
+  message("Loading cached gene expression data")
   load(cache_file)
 }else{
+  message("Downloading gene expression data. This may take some time.")
   
-  source('data_loaders/loadFromGEO.R')
-  x <- loadFromGEO(geo.gxn.d, paste(data_cache, "gxn/discovery", sep=""))
-  gdata.d  <- x[[1]]
-  gpheno.d <- x[[2]]
+  ################################################################################
+  # Load CIS gene expression data
+  #
+  # Data is available from GEO as described in the manuscript.
+  # Included in this repository is processed data in RData format.
+  # Illumina data (discovery set) is quantile normalised.
+  # Affymetrix data (validation set) is normalised using the rma method of the affy package.
+  ################################################################################
   
-  x <- loadFromGEO(geo.gxn.v, paste(data_cache, "gxn/validation", sep=""))
-  gdata.v  <- x[[1]]
-  gpheno.v <- x[[2]]
+  # This provides the following variables:
+  # gdata, gpheno, gdata.d, gpheno.d, gdata.v, gpheno.v 
+  load('./resources/gxnData.RData')
   
-  # Combine discovery and validation sets using ComBat
-  source('utility_functions/runComBat.R')
-  x <- runComBat(gdata.d, gdata.v)
-  gdata  <- cbind(x[[1]], x[[2]])
-  gpheno <- rbind(gpheno.d, gpheno.v)
-  
+  ################################################################################
+  # Add TCGA data
+  ################################################################################
   
   # Load TCGA data
   source('data_loaders/downloadTcgaData.R')
