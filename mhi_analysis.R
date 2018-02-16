@@ -19,8 +19,9 @@ library(pROC)
 # For plots:
 cols <- c("darkgreen", "green", "red", "orange")
 
-mdata.mhi  <- tcga.mdata.all
-mpheno.mhi <- tcga.mpheno.all
+o <- order(tcga.mpheno.all$dose)
+mdata.mhi  <- tcga.mdata.all[,o]
+mpheno.mhi <- tcga.mpheno.all[o,]
 # Exclude all Control samples
 sel.control <- which(mpheno.mhi$Sample_Group == "Control")
 mdata.mhi <- mdata.mhi[,-sel.control]
@@ -68,7 +69,7 @@ sel.v <- which(as.character(mpheno.mhi$name) %in% mpheno$Sample_Name[which(mphen
 for(low in seq(from=0.07, to=0.4, by=0.01)){
   for(high in seq(from=0.75, to=0.95, by=0.01)){
     print(paste("Testing", low, "-", high))
-    myauc <- mhiAucs(samples=sel.d, doplot=F, thresh.up = high, thresh.low = low)
+    myauc <- mhiAucs(probes=rownames(mdata.mhi), samples=sel.d, doplot=F, thresh.up = high, thresh.low = low)
     df <- data.frame(low=low, high=high, cvc=myauc[[1]], pvr=myauc[[2]])
     if(low==0.07 & high==0.75){
       aucs <- df
