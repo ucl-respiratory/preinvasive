@@ -1,5 +1,7 @@
 # Script to check for required packages and install if required
 
+message("Checking for installed dependencies:")
+
 pkgs <- c("gdata",
           "devtools",
           "ChAMP",
@@ -29,6 +31,7 @@ pkgs <- c("gdata",
 to.install <- pkgs[which(!(pkgs %in% rownames(installed.packages())))]
 
 if(length(to.install) > 0){
+  message(paste("Packages to be installed:", paste(to.install, collapse=", ")))
   source("https://bioconductor.org/biocLite.R")
   for(pkg in to.install){
     if(pkg == "ChAMP"){
@@ -39,4 +42,6 @@ if(length(to.install) > 0){
                suppressAutoUpdate=T, ask=F)
     }
   }
+}else{
+  message("OK")
 }
