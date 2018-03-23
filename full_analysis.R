@@ -20,13 +20,6 @@ geo.gxn.d <- "GSE94611" # GXN Discovery
 geo.gxn.v <- "GSE108082" # GXN Validation
 geo.meth  <- "GSE108123"
 
-# Load data
-# These functions load CIS and TCGA data, and make many variables available
-source('data_loaders/loadGeneData.R')
-source('data_loaders/loadMethData.R')
-
-# Load CIN genes - both the CIN70 signature, and CIN70 with cell-cycle genes removed
-load('resources/cin_genes.RData')
 
 # Load libraries in a specific order to avoid overwriting functions
 library(gdata)
@@ -40,11 +33,20 @@ library(limma)
 library(stringr)
 library(WriteXLS)
 library(pamr)
+library(affycoretools)
 
 # Load utility functions
 for(file in list.files("./utility_functions/", full.names = T)){
   source(file)
 }
+
+# Load data
+# These functions load CIS and TCGA data, and make many variables available
+source('data_loaders/loadGeneData.R')
+source('data_loaders/loadMethData.R')
+
+# Load CIN genes - both the CIN70 signature, and CIN70 with cell-cycle genes removed
+load('resources/cin_genes.RData')
 
 # Define colour palettes for heatmaps: hmcol is green/red, hmcol2 is yellow/blue
 hmcol <- colorRampPalette(c("Green","Black","Red"))(256)
@@ -76,7 +78,7 @@ show.legends <- T
 # For methylation, we use the ChAMP package (which is itself built on limma)
 # Outputs are stored in the gdiff and mdiff variables
 ##########################################################################
-source('utility_functions/limmaCompare.R')
+
 # Gene Expression
 gdiff <- limmaCompare(data=gdata.d, pheno=gpheno.d, fdr_limit = 1)
 
