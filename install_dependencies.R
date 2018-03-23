@@ -26,7 +26,10 @@ pkgs <- c("gdata",
           "httr",
           "GenomicDataCommons",
           "biomaRt",
-          "GEOquery")
+          "GEOquery",
+          "affy", 
+          "oligo",
+          "pd.clariom.d.human")
 
 # By default the latest version of these packages will be installed. 
 # Versions used to conduct the analysis can be found in the resources folder.
