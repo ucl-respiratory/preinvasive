@@ -28,6 +28,16 @@ pkgs <- c("gdata",
           "biomaRt",
           "GEOquery")
 
+# By default the latest version of these packages will be installed. 
+# Versions used to conduct the analysis can be found in the resources folder.
+# The code used to create this dependency file from our development environment is as follows:
+#
+# version.file <- "resources/package.versions.csv"
+# version.data <- installed.packages()[pkgs,]
+# write.csv(version.data, file = version.file)
+
+
+# Find missing packages:
 to.install <- pkgs[which(!(pkgs %in% rownames(installed.packages())))]
 
 if(length(to.install) > 0){
@@ -43,5 +53,5 @@ if(length(to.install) > 0){
     }
   }
 }else{
-  message("OK")
+  message("All required packages found.")
 }

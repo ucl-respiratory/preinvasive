@@ -17,9 +17,19 @@ Microarray data is stored in private GEO repositories which will be made public 
 
 ## Dependencies
 
-This code depends on many R packages which are publically available.
+Analysis code is written in R. The relevant version numbers used in our analysis are as follows:
+
+* R version 3.4.1
+* Bioconductor version 3.6
+* Package versions as defined in resources/package.versions.csv
+
+This code depends on many R packages which are publically available. You should be able to install these automatically by running 
+
+  Rscript install_dependencies.R
+  
+This installs the latest versions of all required packages. Should you experience any issues we recommend installing the specific versions detailed in resources/package.versions.csv.
 
 The ChAMP package contains issues in plotting CNA profiles. As such, please install ChAMP from the authors' account using the following:
 
-library(devtools)
-install_github("adamp83/ChAMP")
+  library(devtools)
+  install_github("adamp83/ChAMP")
