@@ -28,6 +28,7 @@ library(ggplot2)
 library(ggsignif)
 library(pheatmap)
 library(pROC)
+library(PRROC)
 library(RColorBrewer)
 library(limma)
 library(stringr)
@@ -225,39 +226,52 @@ o <- order(pamr.pheno$dose)
 pamr.pheno <- pamr.pheno[o,]
 pamr.gdata <- tcga.gdata.all[,o]
 
+# Training set. Cross-validation is performed on this, and a threshold selected.
 sel <- which(pamr.pheno$train == 1 & pamr.pheno$source == "Surveillance")
 gxn.pamr.traindata <- list(
   x=as.matrix(pamr.gdata[genes.shared,sel]),
   y=pamr.pheno$progression[sel],
   geneid = genes.shared
 )
+# Validation set, of CIS data.
 sel <- which(pamr.pheno$train == 0 & pamr.pheno$source == "Surveillance")
 gxn.pamr.testdata <- list(
   x=as.matrix(pamr.gdata[genes.shared,sel]),
   y=pamr.pheno$progression[sel],
   geneid = genes.shared
 )
+# External validation set from the TCGA (here we apply our model to cancer/control samples)
 sel <- which(pamr.pheno$source == "TCGA")
 gxn.pamr.tcgadata <- list(
   x=as.matrix(pamr.gdata[genes.shared,sel]),
   y=pamr.pheno$progression[sel],
   geneid = genes.shared
 )
+
+# Train the model and apply k-fold cross-validation
 gxn.pamr.trainfit <- pamr.train(gxn.pamr.traindata)
-gxn.pamr.mycv <- pamr.cv(gxn.pamr.trainfit, gxn.pamr.traindata)
-# Manually choose threshold = 2.5 from experimentation:
-threshold=2.5
+
+# For reproducibility, manually define folds (these were generated using a call to pamr.cv)
+folds <- list(c(14, 12, 19, 26), c(4, 7, 24, 27), c(11, 32, 29), c(6, 2, 17), c(16, 8, 31, 23), c(13, 22), c(5, 15, 25, 20), c(1, 33, 28), c(10, 9, 30), c(3, 21, 18))
+gxn.pamr.mycv <- pamr.cv(gxn.pamr.trainfit, gxn.pamr.traindata, folds = folds, nfold = length(folds))
+# Manually choose threshold from experimentation - use pamr.plotcv(gxn.pamr.mycv) to help choose a threshold:
+threshold.id <- 16
+threshold <- gxn.pamr.mycv$threshold[[threshold.id]]
 
 pdf(paste(results_dir, 'Fig4A-C_gxn_prediction.pdf', sep=""))
-gxn.pamr.pred.d <- pamr.predict(gxn.pamr.trainfit, newx=gxn.pamr.traindata$x, type='posterior', threshold=threshold)
-plot(gxn.pamr.pred.d[,2], col=c("green", "red")[as.numeric(as.character(gxn.pamr.traindata$y)) + 1], main="Discovery Set", ylab="Progression Score", ylim=c(0,1))
+
+# Plot discovery set probabilities from cross-validated model
+gxn.prob.prog <- gxn.pamr.mycv$prob[,2,threshold.id]
+plot(gxn.prob.prog, col=c("green", "red")[gxn.pamr.traindata$y + 1], ylab="Progression Score", main='Cross-validated prediction model - discovery set')
 abline(v=length(which(gxn.pamr.traindata$y == gxn.pamr.traindata$y[1]))+0.5, col='grey')
 
 features <- pamr.listgenes(gxn.pamr.trainfit, data=gxn.pamr.traindata, threshold=threshold)
 if(show.legends){
   legend("topleft", paste("Features used:", dim(features)[1]))
 }
+plotRocs(gxn.prob.prog, gxn.pamr.traindata$y)
 
+# Plot validation set
 gxn.pamr.pred.v <- pamr.predict(gxn.pamr.trainfit, newx=gxn.pamr.testdata$x, type='posterior', threshold=threshold)
 plot(gxn.pamr.pred.v[,2], col=c("green", "red")[as.numeric(as.character(gxn.pamr.testdata$y)) + 1], main="Validation Set", ylab="Progression Score", ylim=c(0,1))
 abline(v=length(which(gxn.pamr.testdata$y == gxn.pamr.testdata$y[1]))+0.5, col='grey')
@@ -265,7 +279,9 @@ gxn.roc.v <- roc(predictor=gxn.pamr.pred.v[,2], response=gxn.pamr.testdata$y)
 if(show.legends){
   legend('bottomright', legend=paste("AUC", signif(auc(gxn.roc.v), 3), sep="="))
 }
+plotRocs(gxn.pamr.pred.v[,2], gxn.pamr.testdata$y)
 
+# Repeat validation using TCGA data
 gxn.pamr.pred.t <- pamr.predict(gxn.pamr.trainfit, newx=gxn.pamr.tcgadata$x, type='posterior', threshold=threshold)
 plot(gxn.pamr.pred.t[,2], col=c("darkgreen", "orange")[as.numeric(as.character(gxn.pamr.tcgadata$y)) + 1], main="TCGA Data", ylab="Progression Score", ylim=c(0,1))
 abline(v=length(which(gxn.pamr.tcgadata$y == gxn.pamr.tcgadata$y[1]))+0.5, col='grey')
@@ -273,6 +289,8 @@ gxn.roc.t <- roc(predictor=gxn.pamr.pred.t[,2], response=gxn.pamr.tcgadata$y)
 if(show.legends){
   legend('right', legend=paste("AUC", signif(auc(gxn.roc.t), 3), sep="="))
 }
+plotRocs(gxn.pamr.pred.t[,2], gxn.pamr.tcgadata$y)
+
 dev.off()
 
 
