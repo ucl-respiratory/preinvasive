@@ -46,7 +46,7 @@ if(file.exists(cache_file)){
     dir.create(cache_dir, recursive = T, showWarnings = F)
     x <- download.file(url, destfile = geo.file.d)
   }
-  gdata.d <- read.table(geo.file.d, sep="\t", header=T)
+  gdata.d <- read.table(geo.file.d, sep="\t", header=T, quote="", fill=T)
   rownames(gdata.d) <- gdata.d$ID_REF
   cols <- grep("Log", colnames(gdata.d))
   gdata.d <- gdata.d[,cols]
