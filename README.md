@@ -14,6 +14,17 @@ This code downloads large volumes of data from NCBI GEO and the Cancer Genome At
 
 Microarray data is stored in private GEO repositories which will be made public on publication. For reviewer access please contact the authors.
 
+With reviewer access to relevant GEO datasets, files should be downloaded as follows:
+
+```
+https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE94611&format=file&file=GSE94611%5Fnon%5Fnormalized%2Etxt%2Egz downloaded to data/gxn/discovery/gxn.discovery.txt
+
+https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE108082&format=file downloaded to data/gxn/validation/gxn.validation.tar
+
+https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE108123&format=file downloaded to data/meth/geo/meth.geo.data.tar
+```
+
+All processing functions and downloading of TCGA data are handled by the scripts in data_loaders.
 
 ## Dependencies
 

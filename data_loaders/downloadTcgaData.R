@@ -1,6 +1,8 @@
 # Download data directly from the TCGA
 # Data is exported with only required attribute of Progression (1/0) for cancer/control samples
 library(GenomicDataCommons)
+library(biomaRt)
+library(httr)
 
 downloadTcgaData <- function(
   w_type = "HTSeq - Counts",
@@ -48,7 +50,6 @@ downloadTcgaData <- function(
   # Read into R
   # For Copy Number data map to bands. Otherwise merge by gene.
   if(d_type == "Copy Number Segment"){
-    library(httr)
     ensembl_url <- "http://rest.ensembl.org/info/assembly/homo_sapiens?content-type=application/json&bands=1"
     req <- GET(url=ensembl_url)
     # JSON data stored in content(req)
@@ -120,7 +121,6 @@ downloadTcgaData <- function(
   # For gene expression data, convert to gene symbols
   if(d_type == "Gene Expression Quantification"){
     # Convert rownames to gene name
-    library(biomaRt)
     ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
     enids <- alldata.raw$gene
     sel <- grep("^ENS", enids)

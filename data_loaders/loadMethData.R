@@ -11,6 +11,15 @@
 # TCGA data is large (~60Gb) and parsing these data is memory-intensive.
 ##########################################################################
 
+library(ChAMP)
+library(ChAMPdata)
+source('utility_functions/runComBat.R')
+source('data_loaders/downloadTcgaData.R')
+library(preprocessCore)
+library(DNAcopy)
+library(httr)
+source('./data_loaders/loadFromGEO.R')
+
 if(!exists("data_cache")){
   data_cache <- "./data/"
 }
@@ -91,7 +100,6 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   ##########################################################################
   # Load TCGA data
   ##########################################################################
-  source('data_loaders/downloadTcgaData.R')
   x <- downloadTcgaData(
     w_type = "Liftover", 
     d_type = "Methylation Beta Value",
@@ -147,7 +155,6 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   data(probe.features)
   pd <- myLoad$pd
   
-  library(preprocessCore)
   names <- colnames(ints)
   intsqn <- normalize.quantiles(as.matrix(ints))
   colnames(intsqn) <- names
@@ -179,7 +186,6 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   MAPINFO <- as.numeric(MAPINFO)
   
   message("Saving Copy Number information for each Sample")
-  library(DNAcopy)
   for (i in 1:ncol(case.intsqnlog)) {
     CNA.object <- CNA(cbind(intsqnlogratio[, i]), CHR,
                       MAPINFO, data.type = "logratio", sampleid = paste(colnames(case.intsqnlog)[i],
@@ -223,7 +229,6 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   # Add cytoband info to the dict reference
   # First get the location data from Ensembl:
   ensembl_url <- "http://rest.ensembl.org/info/assembly/homo_sapiens?content-type=application/json&bands=1"
-  library(httr)
   req <- GET(url=ensembl_url)
   # JSON data stored in content(req)
   # Turn this into a data object with each band represented by chromosome, name, start, end
@@ -265,7 +270,6 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   cnas.band <- cnas.band[,cnas.pheno$Sample_Name]
   
   # Included data set from Dutch group (van Boerdonk et al)
-  source('./data_loaders/loadFromGEO.R')
   x <- loadFromGEO("GSE45287", destdir = paste(data_cache, "cna/dutch", sep=""), gene.col="CYTOBAND", bandAdjust=T)
   dutch.bands <- x[[1]]
   dutch.pheno <- x[[2]]

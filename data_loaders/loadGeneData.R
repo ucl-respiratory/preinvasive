@@ -1,10 +1,18 @@
 ##########################################################################
 # Load Gene Expression Data from GEO
+# Loads CIS expression data from GEO, and TCGA data using Genomic Data Commons. 
+# Data is cached in RData format.
 #
 # Available variables:
 # gdata.d, gpheno.d, gdata.v, gpheno.v (where d and v denote discovery and validation)
 # gdata, gpheno (merged d and v sets)
 ##########################################################################
+
+library(affycoretools)
+library(oligo)
+source('utility_functions/runComBat.R')
+source('data_loaders/downloadTcgaData.R')
+library(limma)
 
 if(!exists("data_cache")){
   data_cache <- "./data/"
@@ -48,7 +56,6 @@ if(file.exists(cache_file)){
   colnames(gdata.d) <- gpheno.d$name
   
   # Normalise using quantile normalisation
-  library(limma)
   gdata.d <- normalizeQuantiles(gdata.d)
   
   # Download Affymetrix GXN data (Discovery set)
@@ -71,7 +78,6 @@ if(file.exists(cache_file)){
   system(cmd)
   
   # Load the CEL files 
-  library(oligo)
   cel.files <- list.files(paste(cache_dir, "validation", sep="/"), pattern = "CEL", full.names = T)
   gdata.v <- read.celfiles(cel.files)
   gdata.v <- rma(gdata.v)
@@ -125,13 +131,11 @@ if(file.exists(cache_file)){
   ################################################################################
   
   # Load TCGA data
-  source('data_loaders/downloadTcgaData.R')
   x <- downloadTcgaData() # Default options are for GXN RNAseq data.
   tcga.gdata  <- x[[1]]
   tcga.gpheno <- x[[2]]
   
   # Voom-transform RNAseq data for comparison with microarray data
-  library(limma)
   tcga.gdata <- data.frame(voom(tcga.gdata))
   
   # Merge CIS and TCGA data together

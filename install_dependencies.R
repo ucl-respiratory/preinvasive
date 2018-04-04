@@ -47,6 +47,8 @@ if(length(to.install) > 0){
   message(paste("Packages to be installed:", paste(to.install, collapse=", ")))
   source("https://bioconductor.org/biocLite.R")
   for(pkg in to.install){
+    # The ChAMP package has been slightly modified to fix a bug in plotting CNA profiles
+    # It is therefore downloaded from the authors' github page, which is publically accessible
     if(pkg == "ChAMP"){
       library(devtools)
       install_github("adamp83/ChAMP")
