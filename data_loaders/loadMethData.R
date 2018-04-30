@@ -217,39 +217,18 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   cnas.probes$chrom <- NULL
   cnas.probes$maploc <- NULL
   
-  cnas.pheno <- pd
-  cnas.pheno$Sample_Name <- make.names(paste(cnas.pheno$Sample_Name, ".qn", sep=""))
+  mcnas.pheno <- pd
+  mcnas.pheno$Sample_Name <- make.names(paste(mcnas.pheno$Sample_Name, ".qn", sep=""))
   # Remove Controls
-  cnas.pheno <- cnas.pheno[-which(cnas.pheno$Sample_Group == "Control"),]
+  mcnas.pheno <- mcnas.pheno[-which(mcnas.pheno$Sample_Group == "Control"),]
   
-  if(!all(cnas.pheno$Sample_Name == colnames(cnas.probes))){
+  if(!all(mcnas.pheno$Sample_Name == colnames(cnas.probes))){
     message("ERROR: cna.probes colnames and pheno don't match")
   }
   
   # Add cytoband info to the dict reference
-  # First get the location data from Ensembl:
-  ensembl_url <- "http://rest.ensembl.org/info/assembly/homo_sapiens?content-type=application/json&bands=1"
-  req <- GET(url=ensembl_url)
-  # JSON data stored in content(req)
-  # Turn this into a data object with each band represented by chromosome, name, start, end
-  bands <- c()
-  chroms <- c()
-  ids <- c()
-  starts <- c()
-  ends <- c()
-  
-  for(reg in content(req)[["top_level_region"]]){
-    for(band in reg$bands){
-      chroms <- c(chroms, band$seq_region_name)
-      ids <- c(ids, band$id)
-      starts <- c(starts, band$start)
-      ends <- c(ends, band$end)
-      bands <- c(bands, c(band$seq_region_name, band$id, band$start, band$end))
-    }
-  }
-  
-  bands <- data.frame(chrom=chroms, id=ids, start=starts, end=ends)
-  rownames(bands) <- paste(bands$chrom, bands$id, sep="")
+  load('resources/bands.dict.RData')
+  bands <- bands.dict
   
   cnas$band <- NA
   # Now go through all probes and label them with a band
@@ -262,12 +241,12 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
     }
   }
   # Aggregate over bands
-  cnas.band <- cnas[,3:(dim(cnas)[2])]
-  cnas.band <- aggregate(cnas.band, by=list(cnas.band$band), FUN=mean)
-  rownames(cnas.band) <- cnas.band$Group.1
-  cnas.band$Group.1 <- NULL
-  cnas.band$band <- NULL
-  cnas.band <- cnas.band[,cnas.pheno$Sample_Name]
+  mcnas.band <- cnas[,3:(dim(cnas)[2])]
+  mcnas.band <- aggregate(mcnas.band, by=list(mcnas.band$band), FUN=mean)
+  rownames(mcnas.band) <- mcnas.band$Group.1
+  mcnas.band$Group.1 <- NULL
+  mcnas.band$band <- NULL
+  mcnas.band <- mcnas.band[,mcnas.pheno$Sample_Name]
   
   # Included data set from Dutch group (van Boerdonk et al)
   x <- loadFromGEO("GSE45287", destdir = paste(data_cache, "cna/dutch", sep=""), gene.col="CYTOBAND", bandAdjust=T)
@@ -279,14 +258,23 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   
   
   # Include TCGA CNA data (relative CNA data)
-  cache_dir_cna <- paste(data_cache, "cna/tcga", sep="")
-  dir.create(cache_dir_cna, recursive = T, showWarnings = F)
-  x <- downloadTcgaData(d_type = "Copy Number Segment", w_type = "DNAcopy", cache_dir = cache_dir_cna)
-  tcga.cnas.bands <- x[[1]]
-  tcga.cnas.pheno <- x[[2]]
+  # THIS IS DONE IN loadWgsData
+  # cache_dir_cna <- paste(data_cache, "cna/tcga", sep="")
+  # dir.create(cache_dir_cna, recursive = T, showWarnings = F)
+  # x <- downloadTcgaData(d_type = "Copy Number Segment", w_type = "DNAcopy", cache_dir = cache_dir_cna)
+  # tcga.cnas.segmented <- x[[1]]
+  # tcga.cnas.bands <- x[[2]]
+  # tcga.cnas.genes <- x[[3]]
+  # tcga.cnas.pheno <- x[[4]]
   
   
   
-  save(cnas.band, cnas.pheno, dutch.bands, dutch.pheno, tcga.cnas.bands, tcga.cnas.pheno, file=cache_file_cna)
+  save(
+    mcnas.band, mcnas.pheno, 
+    dutch.bands, dutch.pheno, 
+    # tcga.cnas.bands, tcga.cnas.pheno, 
+    # tcga.cnas.segmented, tcga.cnas.genes,
+    file=cache_file_cna
+  )
 }
 

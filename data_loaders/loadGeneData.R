@@ -40,23 +40,30 @@ if(file.exists(cache_file)){
   geo.file.v <- paste(cache_dir, "/validation/gxn.validation.tar", sep="")
   
   # Download Illumina GXN data (Discovery set)
-  if(!file.exists(geo.file.d)){
-    # Download non-normalised txt file directly from GEO
-    url <- "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE94611&format=file&file=GSE94611%5Fnon%5Fnormalized%2Etxt%2Egz"
-    dir.create(cache_dir, recursive = T, showWarnings = F)
-    x <- download.file(url, destfile = geo.file.d)
-  }
-  gdata.d <- read.table(geo.file.d, sep="\t", header=T, quote="", fill=T)
-  rownames(gdata.d) <- gdata.d$ID_REF
-  cols <- grep("Log", colnames(gdata.d))
-  gdata.d <- gdata.d[,cols]
+  # if(!file.exists(geo.file.d)){
+  #   # Download non-normalised txt file directly from GEO
+  #   url <- "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE94611&format=file&file=GSE94611%5Fnon%5Fnormalized%2Etxt%2Egz"
+  #   dir.create(cache_dir, recursive = T, showWarnings = F)
+  #   x <- download.file(url, destfile = geo.file.d)
+  # }
+  # gdata.d <- read.table(geo.file.d, sep="\t", header=T, quote="", fill=T)
+  # rownames(gdata.d) <- gdata.d$ID_REF
+  # cols <- grep("Log", colnames(gdata.d))
+  # gdata.d <- gdata.d[,cols]
+  ## Normalise using quantile normalisation
+  #gdata.d <- normalizeQuantiles(gdata.d)
+  
+  
+  # Load GXN data in RData format.
+  # GXN data available on GEO was normalised using proprietary Illumina software.
+  # As this step cannot be easily replicated using open source R software, we 
+  # include the normalised data here in RData format. This matches the individual
+  # sample data available on GEO.
+  load("resources/gxnData.RData")
   
   # Add clinical data to this. This matches data available on GEO, and is included in RData format for convenience.
   load("resources/gxnPhenoDiscovery.RData")
-  colnames(gdata.d) <- gpheno.d$name
   
-  # Normalise using quantile normalisation
-  gdata.d <- normalizeQuantiles(gdata.d)
   
   # Download Affymetrix GXN data (Discovery set)
   if(!file.exists(geo.file.v)){

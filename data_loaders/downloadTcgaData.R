@@ -3,6 +3,7 @@
 library(GenomicDataCommons)
 library(biomaRt)
 library(httr)
+library(maftools)
 
 downloadTcgaData <- function(
   w_type = "HTSeq - Counts",
@@ -30,72 +31,80 @@ downloadTcgaData <- function(
   }
   
   print(paste("Found", dim(cases)[1], "samples, downloading to", cache_dir))
+  dir.create(cache_dir, recursive = T, showWarnings = F)
   
-  # Extract extra info
+  # Somatic mutations are a different file format so handle separately.
+  if(d_type == "Masked Somatic Mutation"){
+    # Download the files
+    files <- gdcdata(unique(as.character(cases$file_id)), progress=F, destination_dir = cache_dir)
+    
+    # We expect only one file here - gzipped MAF
+    if(length(files) != 1){
+      message("WARNING: Multiple SNV MAF files found, using the first only")
+    }
+    file <- files[[1]]
+    system(paste("gunzip", file))
+    file <- gsub(".gz", "", file)
+    
+    # Read MAF file
+    #s <- read.table(file, sep="\t", header=T)
+    s <- read.maf(file)
+    
+    # Return the raw data file
+    return(s@data)
+  }
+  
+  # Ongoing code is for any type other than somatic mutations
   cases$sample_type <- unlist(lapply(1:dim(cases)[1], function(i){
     cases$cases.samples[i][[1]]$sample_type
   }))
   
-  # Download the files
-  dir.create(cache_dir, recursive = T, showWarnings = F)
-  files <- gdcdata(as.character(cases$file_id), progress=F, destination_dir = cache_dir)
+  # Download the files - ignore cached files
+  cached_files <- c()
+  to.download <- c()
+  for(i in 1:dim(cases)[1]){
+    f <- list.files(cache_dir, pattern=as.character(cases$file_name[i]), full.names = T)
+    if(length(f) > 0){
+      cached_files <- c(cached_files, f)
+    }else{
+      to.download <- c(to.download, as.character(cases$file_name[i]))
+    }
+  }
+  if(length(to.download) > 0){
+    files <- gdcdata(as.character(cases$file_id), progress=F, destination_dir = cache_dir)
+  }
+  files <- paste(cache_dir, cases$file_name, sep="/")
   
-  # Unzip
+  # Unzip - don't delete original
   for(file in files){
     if(length(grep(pattern = ".gz$", x=file)) == 0){ next }
-    system(paste("gunzip", file))
+    system(paste("gunzip -kf", file))
   }
   files <- gsub(".gz$", "", files)
   
   # Read into R
   # For Copy Number data map to bands. Otherwise merge by gene.
   if(d_type == "Copy Number Segment"){
-    ensembl_url <- "http://rest.ensembl.org/info/assembly/homo_sapiens?content-type=application/json&bands=1"
-    req <- GET(url=ensembl_url)
-    # JSON data stored in content(req)
-    # Turn this into a data object with each band represented by chromosome, name, start, end
-    bands <- c()
-    chroms <- c()
-    ids <- c()
-    starts <- c()
-    ends <- c()
-    for(reg in content(req)[["top_level_region"]]){
-      for(band in reg$bands){
-        chroms <- c(chroms, band$seq_region_name)
-        ids <- c(ids, band$id)
-        starts <- c(starts, band$start)
-        ends <- c(ends, band$end)
-        bands <- c(bands, c(band$seq_region_name, band$id, band$start, band$end))
-      }
-    }
     
-    bands <- data.frame(chrom=as.character(chroms), id=ids, start=starts, end=ends)
-    rownames(bands) <- paste(bands$chrom, bands$id, sep="")
-    
-    tcga.cnas.bands <- data.frame(row.names = rownames(bands))
-    
-    # Combine files into a large matrix
-    for(i in 1:length(files)){
-      if(i %% 10 == 0){print(paste("Parsing file", i, "/", length(files)))}
-      s <- read.table(files[i], sep="\t", header=T, stringsAsFactors = F)
-      
-      # For each band, find CN segments which overlap and take the mean Segment_Mean of those bands
-      cns <- unlist(lapply(1:dim(bands)[1], function(x){
-        segs <- s[which(s$Chromosome == bands$chrom[x] & s$End > bands$start[x] & s$Start < bands$end[x]), "Segment_Mean"]
-        if(length(segs) > 0){
-          return(mean(segs))
-        }else{
-          return(NA)
-        }
-      }))
-      tcga.cnas.bands[,files[i]] <- cns
-    }
-    alldata <- tcga.cnas.bands
+    # Parse the files and add a pheno data frame
+    x <- parseCnaFiles(files, is.TCGA = T)
+    pheno <- data.frame(
+      name=cases$file_id,
+      progression=as.numeric(list("Solid Tissue Normal"=0,"Primary Tumor"=1)[cases$sample_type]),
+      source="TCGA"
+    )
+    x[[4]] <- pheno
+    return(x)
     
   }else{
     for(i in 1:length(files)){
       print(paste("Parsing file", i, "/", length(files)))
-      s <- read.table(files[i], sep="\t", header=F)
+      if(d_type == "Methylation Beta Value"){
+        s <- read.table(files[i], sep="\t", header=T)
+        s <- s[,1:2]
+      }else{
+        s <- read.table(files[i], sep="\t", header=F)
+      }
       colnames(s) <- c("gene", as.character(files[i]))
       if(i == 1){
         alldata <- s
@@ -145,6 +154,10 @@ downloadTcgaData <- function(
     rownames(alldata) <- alldata$Group.1
     alldata$Group.1 <- NULL
   
+  }else{
+    # Remove the gene column
+    rownames(alldata) <- alldata$gene
+    alldata$gene <- NULL
   }
   
   if(!all(colnames(alldata) == pheno$name)){
