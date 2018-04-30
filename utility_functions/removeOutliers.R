@@ -18,6 +18,17 @@ removeOutliersMatrix<-function(X){
   num;
 }
 
+removeOutliersVector<-function(X){
+  
+  num<-X
+  trim = 0.05
+  lo = quantile(X, trim)
+  hi = quantile(X, 1 - trim)
+  num[num < lo] = lo
+  num[num > hi] = hi
+  num;
+}
+
 #' removeOutliersDF
 #' 
 #' Remove outlier values from a data frame
@@ -49,6 +60,10 @@ removeOutliers <- function(X){
   }else{
     if(is.matrix(X)){
       removeOutliersMatrix(X)
+    }else{
+      if(is.double(X)){
+        removeOutliersVector(X)
+      }
     }
   }
 }

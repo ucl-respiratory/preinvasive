@@ -39,7 +39,7 @@ limmaCompare <- function(data, pheno, colname='progression', fdr_limit=0.01){
   sig_genes <- data[sel,]
   uvv <- data.frame(row.names=rownames(sig_genes), fc=fc[sel], fdr=fdr[sel], t=fit2$t[sel,colId])
   # Sort by t
-  uvv <- uvv[order(-abs(uvv$fc)),]
+  uvv <- uvv[order(-abs(uvv$t)),]
   
   return(uvv)
 }
