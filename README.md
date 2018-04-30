@@ -2,13 +2,11 @@
 
 This repository contains the code used in our publication "Deciphering the genomic, epigenomic and transcriptomic landscapes of pre-invasive lung cancer lesions". 
 
-All R code used to analyse gene expression and microarray data is included.
+All R code used to analyse genomic, gene expression and methylation data is included.
 
-Genomic analysis uses freely available, well established tools available at https://github.com/cancerit, as described in the Methods section.
+## Microarray Data
 
-## Data Downloads
-
-This code downloads large volumes of data from NCBI GEO and the Cancer Genome Atlas (TCGA). It is best run on a cluster; downloads may take several hours. Data will be automatically cached as .RData files - contact us to request access to processed RData files.
+This code downloads large volumes of data from NCBI GEO and the Cancer Genome Atlas (TCGA). It is best run on a cluster; downloads may take several hours, and combining methylation data from these samples has high memory requirements. Data will be automatically cached as .RData files - contact us to request access to processed RData files.
 
 *** GEO Downloads will not work currently ***
 
@@ -25,6 +23,10 @@ https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE108123&format=file downloaded 
 ```
 
 All processing functions and downloading of TCGA data are handled by the scripts in data_loaders.
+
+## Genomic Data
+
+Raw genomic data is stored in the European Genome Archive. This code repository does not cover variant calling; this is performed using established tools freely available at https://github.com/cancerit, as described in the Methods section of our paper. Code in this repository works from downstream VCF files.
 
 ## Dependencies
 

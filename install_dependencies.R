@@ -30,7 +30,14 @@ pkgs <- c("gdata",
           "GEOquery",
           "affy", 
           "oligo",
-          "pd.clariom.d.human")
+          "pd.clariom.d.human",
+          "Homo.sapiens",
+          "BSgenome.Hsapiens.UCSC.hg19",
+          "TxDb.Hsapiens.UCSC.hg19.knownGene",
+          "biovizBase",
+          "maftools",
+          "dndscv",
+          "sciClone")
 
 # By default the latest version of these packages will be installed. 
 # Versions used to conduct the analysis can be found in the resources folder.
@@ -54,8 +61,20 @@ if(length(to.install) > 0){
       library(devtools)
       install_github("adamp83/ChAMP")
     }else{
-      biocLite(pkg, suppressUpdates=T,
-               suppressAutoUpdate=T, ask=F)
+      if(pkg == "dndscv"){
+        library(devtools)
+        install_github("im3sanger/dndscv")
+      }else{
+        if(pkg == "sciClone"){
+          library(devtools)
+          install_github("genome/bmm")
+          install_github("genome/sciClone")
+        }else{
+          biocLite(pkg, suppressUpdates=T,
+                   suppressAutoUpdate=T, ask=F)
+        }
+      }
+      
     }
   }
 }else{
