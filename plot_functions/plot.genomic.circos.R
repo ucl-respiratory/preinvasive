@@ -80,7 +80,7 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   
   # Drivers are simply 1 for drivers, 0 otherwise
   driver.genes <- read.csv('resources/driver_genes.csv', stringsAsFactors = F)
-  driver.genes <- unique(driver.genes$Gene[which(driver.genes$Cancer %in% c("LUSC", "PANCAN"))])
+  driver.genes <- unique(driver.genes$Gene)
   drivers.plot$value[which(drivers.plot$gene %in% driver.genes)] <- 1
   drivers.plot$gene <- NULL
   write.table(drivers.plot, sep="\t", quote=F, col.names=F, row.names = F, file=circos.drivers)

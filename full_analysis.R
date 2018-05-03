@@ -60,7 +60,7 @@ overlap.pheno <- read.xls('resources/overlap.samples.xlsx')
 #driver.genes <- read.csv('resources/driver_mutations.csv')
 # Filter for pan-cancer or lusc-specific
 driver.genes <- read.csv('resources/driver_genes.csv', stringsAsFactors = F)
-driver.genes <- unique(driver.genes$Gene[which(driver.genes$Cancer %in% c("PANCAN", "LUSC"))])
+driver.genes <- unique(driver.genes$Gene)
 
 
 ##########################################################################
