@@ -89,7 +89,7 @@ downloadTcgaData <- function(
     # Parse the files and add a pheno data frame
     x <- parseCnaFiles(files, is.TCGA = T)
     pheno <- data.frame(
-      name=cases$file_id,
+      name=cases$file_name,
       progression=as.numeric(list("Solid Tissue Normal"=0,"Primary Tumor"=1)[cases$sample_type]),
       source="TCGA"
     )

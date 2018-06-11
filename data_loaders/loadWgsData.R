@@ -43,12 +43,18 @@ if(file.exists(cache_file)){
   
   # Pheno file is shared in RData format in this repository.
   load("resources/wgsPheno.RData")
+  
+  # Add purity and ploidy data - output from ASCAT analysis
+  ascat.output <- read.csv('resources/Ascat_ploidy_purity.csv', stringsAsFactors = F)
+  wgs.pheno$purity <- ascat.output$ABBR_CELL_FRAC[match(wgs.pheno$name, ascat.output$SAMPLE)]
+  wgs.pheno$ploidy <- ascat.output$TUM_PLOIDY[match(wgs.pheno$name, ascat.output$SAMPLE)]
 
   # Additionally mark some samples as 'query regressive' - these samples regressed but subsequently showed evidence of new disease on longer follow up 
   # These were identified from our analysis, hence not included in the input pheno file
   wgs.pheno$query.reg <- 0
-  wgs.pheno$query.reg[which(wgs.pheno$name %in% c("PD21884a", "PD21893a"))] <- 1
+  wgs.pheno$query.reg[which(wgs.pheno$name %in% c("PD21884a", "PD21893a", "PD38326a"))] <- 1
   
+  library(stringr)
   library(VariantAnnotation)
   
   ####################################################################################
@@ -116,7 +122,9 @@ if(file.exists(cache_file)){
       ref.reads=ref.reads,
       alt.reads=alt.reads,
       tumour.reads=tumour.reads,
-      depth=depth
+      depth=depth,
+      exonic=grepl("exon", vd),
+      protein.change=gsub("p.", "", str_extract(vd, "p.[A-Z][0-9]+[A-Z]"), fixed = T)
     )
     
     
@@ -160,7 +168,9 @@ if(file.exists(cache_file)){
       ref.reads=NA,
       alt.reads=NA,
       tumour.reads=NA,
-      depth=NA
+      depth=NA,
+      exonic=grepl("exon", vd),
+      protein.change=gsub("p.", "", str_extract(vd, "p.[A-Z][0-9]+[A-Z]"), fixed = T)
     )
     
     # Read rearrangements
@@ -185,7 +195,9 @@ if(file.exists(cache_file)){
         ref.reads=NA,
         alt.reads=NA,
         tumour.reads=NA,
-        depth=NA
+        depth=NA,
+        exonic=F, # We don't compare rearrangements to TCGA so can skip this
+        protein.change=NA
       )
     }
     
@@ -221,7 +233,10 @@ if(file.exists(cache_file)){
   #
   # If a mutation is confidently called in one sample, and is present in another sample
   # from the same patient but failed filters, add it to the mutation list
+  # Here we refer to pileup files directly so we do not miss mutations not called by CaveMan
   ####################################################################################
+  pileup.dir <- paste0(wgs.data.dir, "pileups/")
+  
   # Define a unique mutation string to compare between patients
   muts.all$mid <- paste(
     muts.all$chr, muts.all$start, muts.all$end, muts.all$ref, muts.all$alt, sep="-"
@@ -230,17 +245,85 @@ if(file.exists(cache_file)){
   pts <- unique(wgs.pheno$Patient[which(duplicated(wgs.pheno$Patient))])
   for(pt in pts){
     samples <- wgs.pheno$name[which(wgs.pheno$Patient == pt)]
+    # samples.data <- muts.all[which(muts.all$patient %in% samples),]
+    # mt.ids <- samples.data$mid[which(samples.data$filters.passed)]
     print(paste("Checking patient", pt, "(", length(samples), "samples )"))
     # Find actual mutations. 
     # All of these mutations have been confirmed in at least one sample for this patient.
     # Therefore assume they are also present in other samples, if they have failed filters
-    samples.data <- muts.all[which(muts.all$patient %in% samples),]
-    mt.ids <- samples.data$mid[which(samples.data$filters.passed)]
-    sel <- which(muts.all$mid %in% mt.ids & muts.all$patient %in% samples)
-    print(paste("Correcting", length(which(!muts.all$filters.passed[sel])), "mismatches, from total", dim(samples.data)[1], "mutations"))
-    muts.all$filters.passed[sel] <- TRUE
+    pileup.file <- list.files(pileup.dir, pattern=substr(samples[[1]], 1, 7), full.names=T)
+    pileup <- read.table(pileup.file, sep="\t", header=T, row.names = NULL, skip = 54+length(samples))
+    pileup$mid <- paste(pileup$Chrom, pileup$Pos, pileup$Pos, pileup$Ref, pileup$Alt, sep="-")
+    for(sample in samples){
+      # Mutations present in this sample from pileup data
+      pileup.pt <- pileup[which(!is.na(pileup[,paste0(sample, "_OFS")])),]
+      
+      # Mutations not picked up by CaveMan:
+      sel.missing <- which(!(pileup.pt$mid %in% muts.all$mid[which(muts.all$patient == sample)]))
+      # Mutations picked up by CaveMan but failing filters:
+      sel.failed  <- which(pileup.pt$mid %in% muts.all$mid[which(muts.all$patient == sample)] & !(pileup.pt$mid %in% muts.all$mid[which(muts.all$patient == sample & muts.all$filters.passed == T)]))
+      
+      if(length(sel.failed) > 0){
+        print(paste("Rescued", length(sel.failed), "failed mutations from", sample))
+        muts.all$filters.passed[which(muts.all$patient == sample & muts.all$mid %in% pileup.pt$mid[sel.failed])] <- TRUE
+      }
+      
+      if(length(sel.missing) > 0){
+        print(paste("Rescued", length(sel.missing), "missing mutations from", sample))
+        df <- data.frame(
+          patient=sample,
+          gene=pileup$Gene[sel.missing],
+          class="SNV",
+          type=pileup$Effect[sel.missing],
+          ref=pileup$Ref[sel.missing],
+          alt=pileup$Alt[sel.missing],
+          chr=pileup$Chrom[sel.missing],
+          start=pileup$Start[sel.missing],
+          end=pileup$End[sel.missing],
+          filters=pileup[sel.missing, paste0(sample, "_OFS")],
+          asmd=140,
+          clpm=0,
+          vaf=pileup[sel.missing, paste0(sample, "_MTR")] / pileup[sel.missing, paste0(sample, "_DEP")],
+          ref.reads=pileup[sel.missing, paste0(sample, "_WTR")],
+          alt.reads=pileup[sel.missing, paste0(sample, "_MTR")],
+          tumour.reads=pileup[sel.missing, paste0(sample, "_DEP")],
+          depth=pileup[sel.missing, paste0(sample, "_DEP")],
+          exonic= pileup$VD[sel.missing],
+          protein.change=pileup$Protein[sel.missing],
+          filters.passed=T,
+          mid=pileup$mid[sel.missing]
+        )
+        muts.all <- rbind(muts.all, df)
+      }
+    }
+
+    # sel <- which(muts.all$mid %in% mt.ids & muts.all$patient %in% samples)
+    # print(paste("Correcting", length(which(!muts.all$filters.passed[sel])), "mismatches, from total", dim(samples.data)[1], "mutations"))
+    # muts.all$filters.passed[sel] <- TRUE
     
   }
+  
+  
+  
+  # Define a unique mutation string to compare between patients
+  # muts.all$mid <- paste(
+  #   muts.all$chr, muts.all$start, muts.all$end, muts.all$ref, muts.all$alt, sep="-"
+  # )
+  # # Check each patient with multiple samples
+  # pts <- unique(wgs.pheno$Patient[which(duplicated(wgs.pheno$Patient))])
+  # for(pt in pts){
+  #   samples <- wgs.pheno$name[which(wgs.pheno$Patient == pt)]
+  #   print(paste("Checking patient", pt, "(", length(samples), "samples )"))
+  #   # Find actual mutations. 
+  #   # All of these mutations have been confirmed in at least one sample for this patient.
+  #   # Therefore assume they are also present in other samples, if they have failed filters
+  #   samples.data <- muts.all[which(muts.all$patient %in% samples),]
+  #   mt.ids <- samples.data$mid[which(samples.data$filters.passed)]
+  #   sel <- which(muts.all$mid %in% mt.ids & muts.all$patient %in% samples)
+  #   print(paste("Correcting", length(which(!muts.all$filters.passed[sel])), "mismatches, from total", dim(samples.data)[1], "mutations"))
+  #   muts.all$filters.passed[sel] <- TRUE
+  #   
+  # }
   
   ####################################################################################
   # Filter subs and indels
@@ -250,11 +333,8 @@ if(file.exists(cache_file)){
   muts.unfiltered <- muts.all
   muts.all <- muts.unfiltered[which(muts.all$filters.passed),]
   
-  # Extract only coding mutations (for TCGA comparisons)
-  sel <- which(
-    !is.na(muts.all$gene) & 
-    muts.all$type %in% c("missense", "nonsense", "silent", "start_lost", "stop_lost", "ess_splice", "splice_region", "frameshift", "inframe", "SO:0000010:protein_coding")
-  )
+  # Extract only exonic mutations (for TCGA comparisons)
+  sel <- which(muts.all$exonic)
   muts.coding <- muts.all[sel,]
   
   # Coerce into a data frame showing per-patient mutations
@@ -283,57 +363,6 @@ if(file.exists(cache_file)){
   muts.coding.counts <- apply(muts, 2, sum)
   
   
-  # Annotate muts.all with protein changes using VariantAnnotation package
-  # As hg19 and grch37 have identical genomic labelling we can use hg19 tools here
-  library(BSgenome.Hsapiens.UCSC.hg19)
-  library(TxDb.Hsapiens.UCSC.hg19.knownGene)
-  txdb <- TxDb.Hsapiens.UCSC.hg19.knownGene
-  
-  # We need to convert muts.all into a GRanges object
-  muts.all.gr <- GRanges(
-    seqnames = paste0("chr", as.character(muts.all$chr)),
-    ranges = IRanges(
-      start=muts.all$start, end=muts.all$end
-    ),
-    refAllele=DNAStringSet(muts.all$ref),
-    varAllele=DNAStringSet(muts.all$alt),
-    sample=muts.all$patient,
-    type=muts.all$type
-  )
-  prots <- predictCoding(muts.all.gr, txdb, Hsapiens, varAllele = muts.all.gr$varAllele)
-  prots.data <- elementMetadata(prots)
-  
-  prots2 <- data.frame(
-    sample=elementMetadata(prots)$sample,
-    gene=elementMetadata(prots)$GENEID,
-    start=start(prots),
-    end=end(prots),
-    #aapos=elementMetadata(prots)$PROTEINLOC,
-    ref=elementMetadata(prots)$refAllele,
-    alt=elementMetadata(prots)$varAllele,
-    refaa=elementMetadata(prots)$REFAA,
-    altaa=elementMetadata(prots)$VARAA,
-    change=paste0(
-      elementMetadata(prots)$REFAA, 
-      unlist(lapply(elementMetadata(prots)$PROTEINLOC, function(x){x[[1]]})), 
-      elementMetadata(prots)$VARAA),
-    uuid=paste(elementMetadata(prots)$sample, start(prots), end(prots), sep="-"),
-    type=elementMetadata(prots)$type
-  )
-  sel.na <- which(prots2$refaa == "" | prots2$altaa == "")
-  if(length(sel.na) > 0){ prots2 <- prots2[-sel.na,] }
-  # For each patient/position use the most commonly predicted protein change
-  sel <- unlist(lapply(unique(prots2$uuid), function(x){
-    changes <- table(as.character(prots2[which(prots2$uuid == x),]$change))
-    which(prots2$uuid == x & prots2$change == names(changes[order(changes, decreasing = T)])[1])[1]
-  }))
-  prots2 <- prots2[sel,]
-  
-  # Add to the muts.all data frame
-  muts.all$protein.change <- "*"
-  muts.all.uuid <- paste(muts.all$patient, muts.all$start, muts.all$end, sep="-")
-  muts.all$protein.change <- prots2$change[match(muts.all.uuid, prots2$uuid)]
-  
   ####################################################################################
   # Load Copy Number Alteration (CNA) summary profiles
   #
@@ -347,7 +376,7 @@ if(file.exists(cache_file)){
     pt_index <- regexpr("PD[0-9]+", cna.s.files[i])
     pt <- substr(cna.s.files[i], pt_index, pt_index+7)
     print(paste("Reading CNAS for patient", pt))
-    c <- read.table(cna.s.files[i], sep=",", row.names = 1)
+    c <- read.table(cna.s.files[i], sep=",", row.names = 1, stringsAsFactors = F)
     colnames(c) <- c('chr', 'start', 'end', 'pl', 'pl.min', 'cn', 'cn.min')
     
     if(i == 1){
@@ -381,7 +410,7 @@ if(file.exists(cache_file)){
   for(j in 1:length(cna.s.files)){
     pt_index <- regexpr("PD[0-9]+", cna.s.files[j])
     pt <- substr(cna.s.files[j], pt_index, pt_index+7)
-    c <- read.table(cna.s.files[j], sep=",", row.names = 1)
+    c <- read.table(cna.s.files[j], sep=",", row.names = 1, stringsAsFactors = F)
     colnames(c) <- c('chr', 'start', 'end', 'pl', 'pl.min', 'cn', 'cn.min')
     
     for(i in 1:dim(df)[1]){
@@ -472,6 +501,8 @@ if(file.exists(cache_file)){
     
     cv.data$major.copy.number.inTumour <- cv.data$major.copy.number.inTumour.temp
     cv.data$minor.copy.number.inTumour <- cv.data$minor.copy.number.inTumour.temp
+    cv.data$major.copy.number.inTumour.temp <- NULL
+    cv.data$minor.copy.number.inTumour.temp <- NULL
     
     return(cv.data)
   }
@@ -480,8 +511,11 @@ if(file.exists(cache_file)){
   for (f in cna.s.files) {
     pt_index <- regexpr("PD[0-9]+", f)
     pt <- substr(f, pt_index, pt_index+7)
-    cna.summaries[[pt]] <- read.ascat(f)
+    ptdata <- read.ascat(f)
+    ptdata$sample <- pt
+    cna.summaries[[pt]] <- ptdata
   }
+  cna.summary.list <- rbindlist2(cna.summaries)
   
   # FIND ALL AMPLIFIED AND DELETED GENES IN MULTIPLE SAMPLES 
   library(GenomicRanges)
@@ -691,55 +725,63 @@ if(file.exists(cache_file)){
   #   cache_dir="./data/wgs/tcga"
   # )
   # 
-  tcga.mutect <- downloadTcgaData(
-    d_type="Masked Somatic Mutation",
-    w_type = "MuTect2 Variant Aggregation and Masking",
-    cache_dir="./data/wgs/tcga"
-  )
-  tcga.varscan <- downloadTcgaData(
-    d_type="Masked Somatic Mutation",
-    w_type = "VarScan2 Variant Aggregation and Masking",
-    cache_dir="./data/wgs/tcga"
-  )
-  tcga.ss <- downloadTcgaData(
-    d_type="Masked Somatic Mutation",
-    w_type = "SomaticSniper Variant Aggregation and Masking",
-    cache_dir="./data/wgs/tcga"
-  )
-  tcga.muse <- downloadTcgaData(
-    d_type="Masked Somatic Mutation",
-    w_type = "MuSE Variant Aggregation and Masking",
-    cache_dir="./data/wgs/tcga"
-  )
-  # Merge all four SNV calling datasets
-  # First add a UUID to identify the precise mutation
-  tcga.mutect$uuid <- paste(tcga.mutect$case_id, tcga.mutect$Chromosome, tcga.mutect$Start_Position, tcga.mutect$End_Position, tcga.mutect$Reference_Allele, tcga.mutect$Tumor_Seq_Allele1, tcga.mutect$Tumor_Seq_Allele2, sep="-")
-  tcga.varscan$uuid <- paste(tcga.varscan$case_id, tcga.varscan$Chromosome, tcga.varscan$Start_Position, tcga.varscan$End_Position, tcga.varscan$Reference_Allele, tcga.varscan$Tumor_Seq_Allele1, tcga.varscan$Tumor_Seq_Allele2, sep="-")
-  tcga.ss$uuid <- paste(tcga.ss$case_id, tcga.ss$Chromosome, tcga.ss$Start_Position, tcga.ss$End_Position, tcga.ss$Reference_Allele, tcga.ss$Tumor_Seq_Allele1, tcga.ss$Tumor_Seq_Allele2, sep="-")
-  tcga.muse$uuid <- paste(tcga.muse$case_id, tcga.muse$Chromosome, tcga.muse$Start_Position, tcga.muse$End_Position, tcga.muse$Reference_Allele, tcga.muse$Tumor_Seq_Allele1, tcga.muse$Tumor_Seq_Allele2, sep="-")
-
-  # Merge data frames and remove duplicates
-  tcga.snvs <- rbind(tcga.mutect, tcga.varscan, tcga.ss, tcga.muse)
-  tcga.snvs <- tcga.snvs[-which(duplicated(tcga.snvs$uuid)),]
+  # tcga.mutect <- downloadTcgaData(
+  #   d_type="Masked Somatic Mutation",
+  #   w_type = "MuTect2 Variant Aggregation and Masking",
+  #   cache_dir="./data/wgs/tcga"
+  # )
+  # tcga.varscan <- downloadTcgaData(
+  #   d_type="Masked Somatic Mutation",
+  #   w_type = "VarScan2 Variant Aggregation and Masking",
+  #   cache_dir="./data/wgs/tcga"
+  # )
+  # tcga.ss <- downloadTcgaData(
+  #   d_type="Masked Somatic Mutation",
+  #   w_type = "SomaticSniper Variant Aggregation and Masking",
+  #   cache_dir="./data/wgs/tcga"
+  # )
+  # tcga.muse <- downloadTcgaData(
+  #   d_type="Masked Somatic Mutation",
+  #   w_type = "MuSE Variant Aggregation and Masking",
+  #   cache_dir="./data/wgs/tcga"
+  # )
+  # # Merge all four SNV calling datasets
+  # # First add a UUID to identify the precise mutation
+  # tcga.mutect$uuid <- paste(tcga.mutect$case_id, tcga.mutect$Chromosome, tcga.mutect$Start_Position, tcga.mutect$End_Position, tcga.mutect$Reference_Allele, tcga.mutect$Tumor_Seq_Allele1, tcga.mutect$Tumor_Seq_Allele2, sep="-")
+  # tcga.varscan$uuid <- paste(tcga.varscan$case_id, tcga.varscan$Chromosome, tcga.varscan$Start_Position, tcga.varscan$End_Position, tcga.varscan$Reference_Allele, tcga.varscan$Tumor_Seq_Allele1, tcga.varscan$Tumor_Seq_Allele2, sep="-")
+  # tcga.ss$uuid <- paste(tcga.ss$case_id, tcga.ss$Chromosome, tcga.ss$Start_Position, tcga.ss$End_Position, tcga.ss$Reference_Allele, tcga.ss$Tumor_Seq_Allele1, tcga.ss$Tumor_Seq_Allele2, sep="-")
+  # tcga.muse$uuid <- paste(tcga.muse$case_id, tcga.muse$Chromosome, tcga.muse$Start_Position, tcga.muse$End_Position, tcga.muse$Reference_Allele, tcga.muse$Tumor_Seq_Allele1, tcga.muse$Tumor_Seq_Allele2, sep="-")
+  # 
+  # # Merge data frames and remove duplicates
+  # tcga.snvs <- rbind(tcga.mutect, tcga.varscan, tcga.ss, tcga.muse)
+  # tcga.snvs <- tcga.snvs[-which(duplicated(tcga.snvs$uuid)),]
+  # 
+  # # This data frame gives a good estimate of mutational burden in coding regions (TCGA uses WXS)
+  # 
+  # # Alternative driver method using TCGA portal downloads:
+  # # tcga.drivers <- read.csv("resources/tcga.driver.genes.csv", header=T, stringsAsFactors=F)
+  # # tcga.drivers$cases <- as.numeric(unlist(lapply(tcga.drivers$X..Affected.Cases.in.Cohort, function(x){
+  # #   unlist(strsplit(x, " / "))[[1]]
+  # # })))
+  # # tcga.drivers$pc <- 100 * tcga.drivers$cases / 504
+  # 
+  # 
+  # # Calculate mutation rates (i.e. the number of samples with 1+ mutation in a given gene)
+  # # Remove multiple mutations per gene, per sample
+  # tcga.snvs$pt.gene <- paste(tcga.snvs$Tumor_Sample_UUID, tcga.snvs$Hugo_Symbol)
+  # tcga.snvs.rmdups <- tcga.snvs[-which(duplicated(tcga.snvs$pt.gene)),]
+  # tcga.snvs.rates <- table(tcga.snvs.rmdups$Hugo_Symbol) / length(unique(tcga.snvs.rmdups$Tumor_Sample_UUID))
   
-  # This data frame gives a good estimate of mutational burden in coding regions (TCGA uses WXS)
   
-  # Alternative driver method using TCGA portal downloads:
-  # tcga.drivers <- read.csv("resources/tcga.driver.genes.csv", header=T, stringsAsFactors=F)
-  # tcga.drivers$cases <- as.numeric(unlist(lapply(tcga.drivers$X..Affected.Cases.in.Cohort, function(x){
-  #   unlist(strsplit(x, " / "))[[1]]
-  # })))
-  # tcga.drivers$pc <- 100 * tcga.drivers$cases / 504
-  
-
-  # Calculate mutation rates (i.e. the number of samples with 1+ mutation in a given gene)
-  # Remove multiple mutations per gene, per sample
-  tcga.snvs$pt.gene <- paste(tcga.snvs$Tumor_Sample_UUID, tcga.snvs$Hugo_Symbol)
-  tcga.snvs.rmdups <- tcga.snvs[-which(duplicated(tcga.snvs$pt.gene)),]
-  tcga.snvs.rates <- table(tcga.snvs.rmdups$Hugo_Symbol) / length(unique(tcga.snvs.rmdups$Tumor_Sample_UUID))
+  # Load TCGA mutation rates
+  # Data are generated from Caveman calls of TCGA data, using the same algorithms as for our CIS mutation calls
+  # Data are similar to those presented on the TCGA portal
+  tcga.snvs.rates.data <- read.table('resources/TCGA_prop_samples_with_subs_or_indels_in_gene.txt', header=T, stringsAsFactors = F)
+  tcga.snvs.rates <- as.list(tcga.snvs.rates.data$V2)
+  names(tcga.snvs.rates) <- tcga.snvs.rates.data$V1
 
   # TCGA copy number data
-  # We load data derived from ASCAT analysis of TCGA samples
+  # We load GISTIC data from TCGA - we cannot use the same methods for CIS and TCGA here due to differences between whole genome and whole exome sequencing
   # Pass these data into our parsing function
   # x <- load('resources/tcga.lusc.seg.hg19.rdata')
   # x <- seg.mat.copy.list$segments
@@ -766,18 +808,26 @@ if(file.exists(cache_file)){
   
   
   # Add a mean value for tcga.cnas.segmented
-  # Include the mean CNA segment values across all samples, corrected for ploidy
+  # Include the mean CNA segment values across all cancer samples, corrected for ploidy
   tcga.cnas.segmented.mean <- tcga.cnas.segmented[,1:3]
   #tcga.cnas.segmented.mean$cn <- apply(tcga.cnas.segmented[,4:dim(tcga.cnas.segmented)[2]] / tcga.cnas.ploidys, 1, mean)
-  tcga.cnas.segmented.mean$cn <- apply(tcga.cnas.segmented[,4:dim(tcga.cnas.segmented)[2]] , 1, mean)
+  tcga.cnas.segmented.mean$cn <- apply(tcga.cnas.segmented[,gsub(".grch38.seg.txt", "", as.character(tcga.cnas.pheno$name[which(tcga.cnas.pheno$progression == 1)]))] , 1, mean)
   
   # Sometimes we can collapse this into a smaller data frame using Genomic Ranges if adjacent regions have the same mean:
-  range <- GRanges(seqnames = Rle(tcga.cnas.segmented.mean$chr), 
+  range <- GRanges(seqnames = Rle(paste0("chr", tcga.cnas.segmented.mean$chr)), 
                    ranges=IRanges(start=tcga.cnas.segmented.mean$start, end=tcga.cnas.segmented.mean$end),
                    cn=tcga.cnas.segmented.mean$cn)
-  x <- sort(unlist(reduce(split(range, elementMetadata(range)$cn))))
+  
+  # We also need to map grch38 TCGA data to grch37 (== hg19):
+  library(rtracklayer)
+  chain <- import.chain("resources/hg38ToHg19.over.chain")
+  x.hg19 <- unlist(liftOver(range, chain))
+  
+  # Merge together
+  x <- sort(unlist(reduce(split(x.hg19, elementMetadata(x.hg19)$cn))))
+  
   tcga.cnas.segmented.mean <- data.frame(
-    chr=seqnames(x), start=start(x), end=end(x), cn=as.numeric(names(x))
+    chr=gsub("chr", "", seqnames(x)), start=start(x), end=end(x), cn=as.numeric(names(x))
   )
   
   ####################################################################################
@@ -785,11 +835,12 @@ if(file.exists(cache_file)){
   ####################################################################################
   save(
     subs.all, indels.all, rearr.all,
+    cna.summary.list,
     cnas.segmented, cnas.segmented.mean,
     cnas.genes.summary, cnas.amps, cnas.dels, 
     cnas.bands.summary, cnas.amps.band, cnas.dels.band,
     muts, muts.all, muts.unfiltered, muts.coding, muts.coding.counts,
-    tcga.snvs, tcga.snvs.rates,
+    tcga.snvs.rates,
     tcga.cnas.segmented, tcga.cnas.segmented.mean,
     tcga.cnas.bands, tcga.cnas.genes, tcga.cnas.pheno, #tcga.cnas.ploidys,
     wgs.pheno, 
