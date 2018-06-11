@@ -29,4 +29,4 @@ signif_genes = sel_cv[sel_cv$qglobal_cv<0.1, c("gene_name","qglobal_cv")]
 rownames(signif_genes) = NULL
 print(signif_genes)
 
-# Result - only TP53 is identified.
+# Result - TP53 and CDKN2A are identified.

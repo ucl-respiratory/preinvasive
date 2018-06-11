@@ -99,9 +99,9 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   cnas.track <- cnas.track[which(!(cnas.track$chr %in% c('hsX', "hsY"))),]
   # Add colours manually
   cnas.track$col <- "color=vvlgrey"
-  cnas.track$col[which(cnas.track$value < 0.9)] <- "color=lblue"
+  cnas.track$col[which(cnas.track$value < 0.95)] <- "color=lblue"
   cnas.track$col[which(cnas.track$value < 0.4)] <- "color=vdblue"
-  cnas.track$col[which(cnas.track$value > 1.1)] <- "color=lred"
+  cnas.track$col[which(cnas.track$value > 1.05)] <- "color=lred"
   cnas.track$col[which(cnas.track$value > 2)] <- "color=vdred"
   write.table(cnas.track, sep="\t", quote=F, col.names=F, row.names = F, file=circos.cnas)
   
@@ -111,11 +111,13 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   tcga.cnas.track$chr <- paste("hs", tcga.cnas.track$chr, sep="")
   # Remove sex chromosomes
   tcga.cnas.track <- tcga.cnas.track[which(!(tcga.cnas.track$chr %in% c('hsX', "hsY"))),]
+  # Translate from logR to ploidy-corrected CN
+  tcga.cnas.track$value <- 2**tcga.cnas.track$value
   # Add colours manually
   tcga.cnas.track$col <- "color=vvlgrey"
-  tcga.cnas.track$col[which(tcga.cnas.track$value < 0.9)] <- "color=lblue"
+  tcga.cnas.track$col[which(tcga.cnas.track$value < 0.95)] <- "color=lblue"
   tcga.cnas.track$col[which(tcga.cnas.track$value < 0.4)] <- "color=vdblue"
-  tcga.cnas.track$col[which(tcga.cnas.track$value > 1.1)] <- "color=lred"
+  tcga.cnas.track$col[which(tcga.cnas.track$value > 1.05)] <- "color=lred"
   tcga.cnas.track$col[which(tcga.cnas.track$value > 2)] <- "color=vdred"
   write.table(tcga.cnas.track, sep="\t", quote=F, col.names=F, row.names = F, file=circos.cnas.tcga)
   
@@ -292,12 +294,12 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
                 </plot>
                 
                 # Heatmap for TCGA CNAs - AWAITING SANGER DATA
-                #<plot>
-                #type  = heatmap
-                #file  = ",circos.cnas.tcga,"
-                #r1    = 0.81r
-                #r0    = 0.79r
-                #</plot>
+                <plot>
+                type  = heatmap
+                file  = ",circos.cnas.tcga,"
+                r1    = 0.81r
+                r0    = 0.79r
+                </plot>
                 
                 # Heatmap for CIS GXNs
                 #<plot>

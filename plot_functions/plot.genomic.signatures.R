@@ -151,4 +151,23 @@ plot.genomic.signatures <- function(filename){
   dev.off() 
   
   
+  # TCGA comparison:
+  png(paste0(filename, "_with_tcga.png"), width=960, height=960*3 / dim(wgs.pheno)[1])
+  
+  # Plot mean signature contributions for CIS and TCGA
+  cont.combined <- data.frame(row.names = row.names(fit_res_exonic$contribution))
+  cont.combined$cis  <- apply(fit_res_exonic$contribution, 1, mean)
+  cont.combined$tcga <- apply(fit_res_tcga$contribution, 1, mean)
+  plot_contribution(as.matrix(cont.combined[select,]), cancer_signatures[,select], coord_flip = T, mode="relative", palette=col_vector[1:dim(cancer_signatures)[2]])
+
+  dev.off()
+  
+  # Plot cosine similarity matrix
+  pdf(paste0(filename, "_tcga_similarity.pdf"))
+  cs <- cos_sim_matrix(tcga_mut_mat, mut_mat_exonic)
+  rownames(cs) <- 1:dim(cs)[1]
+  colnames(cs) <- paste0(colnames(cs), " (", c("R", "P")[wgs.pheno$progression+1], ")")
+  plot_cosine_heatmap(cs, cluster_rows = T)
+  dev.off()
+  
 }

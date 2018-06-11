@@ -1,4 +1,4 @@
-#plot.overlaps.circos <- function(filename, circos.dir="results/circos.overlap/"){
+plot.overlaps.circos <- function(filename, circos.dir="results/circos.overlap/"){
   # Generate a circos plot showing the 10 samples with WGS/meth/gxn data
   # This file creates a circos.conf file for use with circos software available at http://circos.ca
   
@@ -201,4 +201,4 @@
   system(circos.cmd) # conf file should be in this directory already
   # file.copy("circos.png", paste(wd, filename, sep="/"))
   setwd(wd)
-#}
+}

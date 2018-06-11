@@ -37,7 +37,11 @@ pkgs <- c("gdata",
           "biovizBase",
           "maftools",
           "dndscv",
-          "sciClone")
+          "affycoretools",
+          "sciClone",
+          "foreach",
+          "doParallel", 
+          "GenVisR")
 
 # By default the latest version of these packages will be installed. 
 # Versions used to conduct the analysis can be found in the resources folder.

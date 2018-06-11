@@ -30,6 +30,8 @@ library(stringr)
 library(WriteXLS)
 library(pamr)
 library(affycoretools)
+library(foreach)
+library(doParallel)
 
 # Load utility functions
 for(file in list.files("./utility_functions/", full.names = T)){
@@ -39,6 +41,13 @@ for(file in list.files("./utility_functions/", full.names = T)){
 # Load figure plotting functions
 for(file in list.files("./plot_functions/", full.names = T)){
   source(file)
+}
+
+# For some analyses we use parallel processing to take advantage of multiple cores
+cores=detectCores()
+if(cores > 1){
+  cl <- makeCluster(cores[1]-1) #not to overload your computer
+  registerDoParallel(cl)
 }
 
 ##########################################################################
@@ -153,6 +162,37 @@ mdiff.dose <- champ.DMP(
   pheno=as.numeric(tcga.mpheno.all$dose)
 )
 mdiff.dose <- mdiff.dose$NumericVariable
+
+
+##########################################################################
+# Differential expression analysis of genomic data
+##########################################################################
+# Look for genes which perfectly differentiate P vs R
+sel <- which(
+  (all(muts[,which(wgs.pheno$progression == 1)] > 0) & all(muts[,which(wgs.pheno$progression == 0)] == 0)) |
+  (all(muts[,which(wgs.pheno$progression == 1)] == 0) & all(muts[,which(wgs.pheno$progression > 0)] == 0))
+)
+if(length(sel) > 0){
+  print(paste("Genes perfectly separating progressive and regressive:", paste(rownames(muts)[sel], collapse=", ")))
+}else{
+  print("No genes perfectly separated progressive and regressive.")
+}
+# We find no genes here.
+
+# Now try applying a statistical test (Fisher's) for every gene and correcting for multiple testing
+# Here we are comparing the presence of any subs or indels PvR
+sig.genomic <- data.frame(
+  gene=rownames(muts),
+  p=unlist(lapply(rownames(muts), function(x){
+    if(all(as.numeric(muts[x,]) == as.numeric(muts[x,1]))){
+      return(1)
+    }
+    return(fisher.test(as.numeric(muts[x,]) > 0, wgs.pheno$progression)$p.value)
+  }))
+)
+sig.genomic$p.adj <- p.adjust(sig.genomic$p)
+print(paste("Genes with significantly different mutations P vs R:", length(which(sig.genomic$p.adj < 0.05))))
+# Again we find no genes (not surprising given our sample numbers).
 
 
 ##########################################################################
@@ -415,6 +455,7 @@ col_vector = unlist(mapply(brewer.pal, qual_col_pals$maxcolors, rownames(qual_co
 # Read the filters also (ASMD >= 140 & CLPM == 0) - these aren't collected by the read_vcfs_as_granges function
 vcf.files <- c()
 passed.filters <- list()
+is.exonic <- list()
 for(i in 1:dim(wgs.pheno)[1]){
   print(paste("Checking filters for", wgs.pheno$name[i]))
   vcf <- list.files("data/wgs/caveman", pattern=wgs.pheno$name[i], full.names=T)
@@ -423,14 +464,20 @@ for(i in 1:dim(wgs.pheno)[1]){
   asmd <- as.numeric(readInfo(vcf, x='ASMD'))
   vcf.files <- c(vcf.files, vcf)
   passed.filters[[i]] <- which(filters == "PASS" & clpm == 0 & asmd >= 140)
+  vd <- as.character(readInfo(vcf, x='VD'))
+  is.exonic[[i]] <- grepl("exon", vd)
 }
 # Read VCFs
 vcfs <- read_vcfs_as_granges(vcf.files, sample_names = wgs.pheno$name, ref_genome, check_alleles = F)
+vcfs.exonic <- list()
 # Apply filters:
 for(i in 1:length(vcfs)){
   sel <- passed.filters[[i]]
+  sel.exonic <- which(is.exonic[[i]])
+  vcfs.exonic[[i]] <- vcfs[[i]][intersect(sel, sel.exonic)]
   vcfs[[i]] <- vcfs[[i]][sel]
 }
+names(vcfs.exonic) <- names(vcfs)
 
 # Calculate spectrum across all samples
 type_occurrences <- mut_type_occurrences(vcfs, ref_genome)
@@ -474,6 +521,39 @@ sigs.to.analyse <- c(
 cancer_signatures.used <- cancer_signatures[,sigs.to.analyse]
 fit_res <- fit_to_signatures(mut_mat, cancer_signatures.used)
 
+
+# Add TCGA signatures - based on Caveman calls of TCGA data
+tcga_mut_mat <- read.table("resources/TCGA_trinucleotide_counts.txt", header=T, stringsAsFactors = F)
+# Coerce to correct format
+tcga_mut_mat <- t(tcga_mut_mat)
+strs <- strsplit(rownames(tcga_mut_mat), "[.]")
+rnames <- unlist(lapply(strs, function(x){
+  paste0(
+    substr(x[4],1,1),
+    "[",x[1],">",x[2],"]",
+    substr(x[4],3,3)
+  )
+}))
+rownames(tcga_mut_mat) <- rnames
+
+fit_res_tcga <- fit_to_signatures(tcga_mut_mat, cancer_signatures.used)
+
+# We can also make a mut_type_occurrences matrix
+type_occurrences_tcga <- aggregate(tcga_mut_mat, by=list(substr(rownames(tcga_mut_mat), 3, 5)), FUN=sum)
+rownames(type_occurrences_tcga) <- type_occurrences_tcga$Group.1
+type_occurrences_tcga$Group.1 <- NULL
+type_occurrences_tcga <- t(type_occurrences_tcga)
+# Compare to exonic muts only
+mut_mat_exonic <- mut_matrix(vcf_list = vcfs.exonic, ref_genome = ref_genome)
+fit_res_exonic <- fit_to_signatures(mut_mat_exonic, cancer_signatures.used)
+type_occurrences_exonic <- mut_type_occurrences(vcfs.exonic, ref_genome)
+
+pdf("mut.test.pdf")
+plot_spectrum(type_occurrences)
+plot_spectrum(type_occurrences_exonic)
+plot_spectrum(as.data.frame(type_occurrences_tcga))
+dev.off()
+
 ##########################################################################
 # Clonality analysis
 ##########################################################################
@@ -514,8 +594,21 @@ if(length(sel.rm) > 0){ annot <- annot[-sel.rm,] }
 # For each patient, create a 1D plot and data output
 opdir <- paste(results_dir, "clonality/", sep="")
 dir.create(opdir, recursive = T, showWarnings = F)
-clusterdata <- list()
-for(pt in allpts){
+# clusterdata <- list()
+# for(pt in allpts){
+#   sc = sciClone(
+#     vafs=snv.clonality[[pt]],
+#     copyNumberCalls=cn.clonality[[pt]],
+#     sampleNames=pt,
+#     minimumDepth = 10,
+#     annotation = annot
+#   )
+#   writeClusterTable(sc, paste(opdir, "clusters_", pt, ".tsv", sep=""))
+#   sc.plot1d(sc, paste(opdir, "clusters_",pt,".1d.pdf", sep=""))  
+#   clusterdata[[pt]] <- sc
+# }
+clusterdata <- foreach(pt=allpts) %dopar% {
+  library(sciClone)
   sc = sciClone(
     vafs=snv.clonality[[pt]],
     copyNumberCalls=cn.clonality[[pt]],
@@ -523,22 +616,47 @@ for(pt in allpts){
     minimumDepth = 10,
     annotation = annot
   )
+  return(sc)
+}
+names(clusterdata) <- allpts
+save(clusterdata, file = paste0(opdir, "clusterdata.RData"))
+for(pt in allpts){
+  print(pt)
+  sc <- clusterdata[[pt]]
   writeClusterTable(sc, paste(opdir, "clusters_", pt, ".tsv", sep=""))
-  sc.plot1d(sc, paste(opdir, "clusters_",pt,".1d.pdf", sep=""))  
-  clusterdata[[pt]] <- sc
+  sc.plot1d(sc, paste(opdir, "clusters_",pt,".1d.pdf", sep=""))
 }
 
 # Analyse clonality per-sample
+# Here we find:
+#   The number of clusters
+#   The proportion of mutations in the dominant clone (i.e. the clone with the most mutations)
+#   The number of clonal mutations (mutations in the cluster with mean VAF nearest 0.5 when corrected for purity)
+# Values added to wgs.pheno are used in plots below.
 wgs.pheno$nclusters <- NA
 wgs.pheno$dom.clone.proportion <- NA
+wgs.pheno$clonal.muts <- NA
 for(i in 1:dim(wgs.pheno)[1]){
   c <- read.table(paste(opdir, "clusters_", wgs.pheno$name[i], ".tsv", sep=""), sep="\t", header = T)
+  c <- c[which(!is.na(c$cluster) & c$cluster > 0),]
   wgs.pheno$nclusters[i] <- length(unique(c$cluster))
+  
   # Proportion of substitutions in the dominant clone
   t <- table(c$cluster)
   domclone <- names(t)[which(t == max(t))]
   wgs.pheno$dom.clone.proportion[i] <- t[domclone] / sum(t)
+  
+  # Number of fully clonal mutations
+  vaf <- c[,paste0(wgs.pheno$name[i], ".vaf")]
+  clusters <- unique(c$cluster)
+  cluster.means <- unlist(lapply(clusters, function(x){
+    mean(vaf[which(c$cluster == x)]) / wgs.pheno$purity[i]
+  }))
+  names(cluster.means) <- clusters
+  clonal.cluster <- names(cluster.means)[which(abs(cluster.means - 50) == min(abs(cluster.means - 50)))]
+  wgs.pheno$clonal.muts[i] <- length(which(c$cluster == clonal.cluster))
 } 
+
 
 ##########################################################################
 # DMR analysis
@@ -607,7 +725,7 @@ df <- data.frame(
   filters="PASS",
   asmd=140,
   clpm=0,
-  vaf=NA,ref.reads=NA,alt.reads=NA,tumour.reads=NA,depth=NA,filters.passed=T,mid=NA,protein.change=NA
+  vaf=NA,ref.reads=NA,alt.reads=NA,tumour.reads=NA,depth=NA,exonic=NA,protein.change=NA,filters.passed=T,mid=NA
 )
 muts.all.cn <- rbind(
   muts.all[which(muts.all$type %in% c("missense", "nonsense", "start_lost", "stop_lost", "ess_splice", "splice_region", "frameshift", "inframe", "SO:0000010:protein_coding", "CN amplification", "CN deletion")),]
@@ -643,7 +761,7 @@ wgs.pheno$driver.count <- unlist(lapply(wgs.pheno$name, function(x){
 }))
 
 # Additionally run dndscv to identify novel drivers
-# (Code in separate file as no genes identified and no plots made)
+# (Code in separate file)
 
 ##########################################################################
 # Start of plots
@@ -673,9 +791,9 @@ plot.meth.mhi(paste(results_dir, 'Fig4E_mvp_probe_counts.pdf', sep=""))
 plot.meth.mhi.cvc.histo(paste(results_dir, 'Fig4F_mhi_sample_histograms.pdf', sep=""))
 
 ##########################################################################
-# Figure 5: GXN Pathway analysis and...
+# Figure 5: GXN Pathway analysis and CIN gene plots. Methylation output also done here.
+# Note we do not make plots in this file, just Excel output for plotting in Prism.
 ##########################################################################
-# Pathway analysis output saved to Excel - plot created in Prism
 WriteXLS(
   "gxn.gage.summary",
   ExcelFileName = paste(results_dir,"Fig_5A_data_gxn_pathways.xlsx", sep=""), row.names = T, AdjWidth = T
@@ -687,64 +805,71 @@ WriteXLS(
   ExcelFileName = paste(results_dir,"Fig5D_methyl_pathways.xlsx", sep=""), row.names = T, AdjWidth = T
 )
 
-
 ##########################################################################
 # Extended data Figure 1: Mutational Signature Analysis
 ##########################################################################
 plot.genomic.signatures(paste0(results_dir, "Ext_Fig1_MutationalSignatures"))
 
 ##########################################################################
-# Extended data Figure 2: Genomic PvR boxplots
+# Extended data Figure 2: Genome-wide copy number plots
 ##########################################################################
-plot.genomic.pvr(paste(results_dir, "Ext_Fig2_Genomic_PVR_plots.pdf", sep=""))
+plot.genomic.cna.genomewide(paste0(results_dir, 'Ext_Fig2_cna_genomewide.png'))
 
 ##########################################################################
-# Extended data Figure 3: Clonality
-#
-# Plots are stored in results_dir/clonality by the above code.
-##########################################################################
-
-##########################################################################
-# Extended data Figure 4: PvR Circos plot
-##########################################################################
-plot.pvr.circos(paste(results_dir, 'Ext_Fig4_pvr_circos.png', sep=''))
-
-##########################################################################
-# Extended data Figure 5: Extended PCA plots
-##########################################################################
-plot.meth.pcas(paste(results_dir, 'Ext_Fig5A-F_methylation_PCAs.pdf', sep=""))
-plot.gxn.pcas(paste(results_dir, 'Ext_Fig5G-K_gxn_PCAs.pdf', sep=""))
-
-##########################################################################
-# Extended data Figure 6
+# Extended data Figure 3
 # 
 # Clinical follow up data, not plotted in R
 ##########################################################################
 
 ##########################################################################
-# Extended data Figure 7: Methylation and CNA predictive models
+# Extended data Figure 4: Genomic PvR boxplots
 ##########################################################################
-
-plot.meth.prediction(paste(results_dir, 'Ext_Fig7A-C_meth_prediction.pdf', sep=""))
-plot.mcna.prediction(paste(results_dir, 'Ext_Fig7D-F_cna_prediction.pdf', sep=""))
+plot.genomic.pvr(paste(results_dir, "Ext_Fig4_Genomic_PVR_plots.pdf", sep=""))
 
 ##########################################################################
-# Extended data Figure 8: MHI Heatmap for PvR data
-##########################################################################
-
-plot.meth.mhi.pvr.histo(paste(results_dir, 'Ext_Fig8_mhi_sample_histograms_pvr.pdf', sep=""))
-
-##########################################################################
-# Extended data Figure 9: Methylation NEK2 ???REMOVE
+# Extended data Figure 5: Clonality
 #
-# TODO
+# Plots are stored in results_dir/clonality by the above code.
 ##########################################################################
 
 ##########################################################################
-# Extended data Figure 10: Correlation of wGII with CIN gene expression
+# Extended data Figure 6: PvR Circos plot
+##########################################################################
+plot.pvr.circos(paste(results_dir, 'Ext_Fig6_pvr_circos.png', sep=''))
+
+##########################################################################
+# Extended data Figure 7: Extended PCA plots
+##########################################################################
+plot.meth.pcas(paste(results_dir, 'Ext_Fig7A-F_methylation_PCAs.pdf', sep=""))
+plot.gxn.pcas(paste(results_dir, 'Ext_Fig7G-K_gxn_PCAs.pdf', sep=""))
+
+
+##########################################################################
+# Extended data Figure 8: Methylation and CNA predictive models
 ##########################################################################
 
-plot.cin.gxn.cor(paste0(results_dir, "Ext_Fig10_cin_gxn_cor.pdf"))
+plot.meth.prediction(paste(results_dir, 'Ext_Fig8A-C_meth_prediction.pdf', sep=""))
+plot.mcna.prediction(paste(results_dir, 'Ext_Fig8D-F_cna_prediction.pdf', sep=""))
+
+##########################################################################
+# Extended data Figure 9: MHI Heatmap for PvR data
+##########################################################################
+
+plot.meth.mhi.pvr.histo(paste(results_dir, 'Ext_Fig9_mhi_sample_histograms_pvr.pdf', sep=""))
+
+##########################################################################
+# Extended data Figure 10: Methylation Pathway analysis
+#
+# Plotted in Prism from above Excel files.
+#
+# TODO - methylation NEK2 plot
+##########################################################################
+
+##########################################################################
+# Extended data Figure 11: Correlation of wGII with CIN gene expression
+##########################################################################
+
+plot.cin.gxn.cor(paste0(results_dir, "Ext_Fig11_cin_gxn_cor.pdf"))
 
 
 ##########################################################################

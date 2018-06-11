@@ -20,8 +20,17 @@ plot.genomic.pvr <- function(filename){
   # Coding mutations
   plotdata$burden.coding <- as.numeric(table(muts.coding$patient)[wgs.pheno$name])
   if(length(which(is.na(plotdata$burden.coding))) > 0){ plotdata$burden.coding[which(is.na(plotdata$burden.coding))] <- 0 }
+  
+  # Driver mutations
+  plotdata$driver.count <- as.numeric(table(muts.coding$patient[which(muts.coding$gene %in% driver.genes)])[wgs.pheno$name])
+  if(length(which(is.na(plotdata$driver.count))) > 0){ plotdata$driver.count[which(is.na(plotdata$driver.count))] <- 0 }
+  
+  # Number of CN changes:
+  plotdata$cna.counts <- unlist(lapply(plotdata$name, function(x){
+    length(which(cna.summary.list$sample == x))
+  }))
   # Number of genes affected by a CN change:
-  plotdata$cna.gene.counts <- as.numeric(apply(cnas.genes.summary[,wgs.pheno$name], 2, function(x){ sum(abs(x), na.rm=T)}))
+  plotdata$cna.counts <- as.numeric(apply(cnas.genes.summary[,wgs.pheno$name], 2, function(x){ sum(abs(x), na.rm=T)}))
   
   # Subs only:
   plotdata$subs.count <- as.numeric(table(muts.all$patient[which(muts.all$class == "SNV")])[wgs.pheno$name])
@@ -75,10 +84,20 @@ plot.genomic.pvr <- function(filename){
              random_effects = "Patient", modelinfo=plotdata)
   compare.fn(dependent_variable = "cna.gene.counts", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
              random_effects = "Patient", modelinfo=plotdata)
+  compare.fn(dependent_variable = "cna.counts", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
+             random_effects = "Patient", modelinfo=plotdata)
   compare.fn(dependent_variable = "wgii", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
              random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
   compare.fn(dependent_variable = "telomeres", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
              random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
+  # Clonality data - generated in full_analysis.R
+  compare.fn(dependent_variable = "nclusters", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
+             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
+  compare.fn(dependent_variable = "dom.clone.proportion", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
+             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
+  compare.fn(dependent_variable = "clonal.muts", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
+             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
+  
  dev.off() 
   
 }
