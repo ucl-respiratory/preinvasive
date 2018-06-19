@@ -58,8 +58,6 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   cis.freq <- tcga.freq
   drivers.plot <- tcga.freq
   driver.labels <- tcga.freq
-  cis.gxn <- tcga.freq
-  cis.meth <- tcga.freq
   samples.muts <- list()
   for(name in wgs.pheno$name){
     samples.muts[[name]] <- tcga.freq
@@ -79,7 +77,7 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   write.table(cis.freq, sep="\t", quote=F, col.names=F, row.names = F, file=circos.cis)
   
   # Drivers are simply 1 for drivers, 0 otherwise
-  driver.genes <- read.csv('resources/driver_genes.csv', stringsAsFactors = F)
+  driver.genes <- read.table('resources/driver_genes.tsv', stringsAsFactors = F, sep="\t", header=T)
   driver.genes <- unique(driver.genes$Gene)
   drivers.plot$value[which(drivers.plot$gene %in% driver.genes)] <- 1
   drivers.plot$gene <- NULL
@@ -100,7 +98,7 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   # Add colours manually
   cnas.track$col <- "color=vvlgrey"
   cnas.track$col[which(cnas.track$value < 0.95)] <- "color=lblue"
-  cnas.track$col[which(cnas.track$value < 0.4)] <- "color=vdblue"
+  cnas.track$col[which(cnas.track$value < 0.55)] <- "color=vdblue"
   cnas.track$col[which(cnas.track$value > 1.05)] <- "color=lred"
   cnas.track$col[which(cnas.track$value > 2)] <- "color=vdred"
   write.table(cnas.track, sep="\t", quote=F, col.names=F, row.names = F, file=circos.cnas)
@@ -112,40 +110,18 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   # Remove sex chromosomes
   tcga.cnas.track <- tcga.cnas.track[which(!(tcga.cnas.track$chr %in% c('hsX', "hsY"))),]
   # Translate from logR to ploidy-corrected CN
-  tcga.cnas.track$value <- 2**tcga.cnas.track$value
+  # tcga.cnas.track$value <- 2**tcga.cnas.track$value
   # Add colours manually
   tcga.cnas.track$col <- "color=vvlgrey"
-  tcga.cnas.track$col[which(tcga.cnas.track$value < 0.95)] <- "color=lblue"
-  tcga.cnas.track$col[which(tcga.cnas.track$value < 0.4)] <- "color=vdblue"
-  tcga.cnas.track$col[which(tcga.cnas.track$value > 1.05)] <- "color=lred"
-  tcga.cnas.track$col[which(tcga.cnas.track$value > 2)] <- "color=vdred"
+  # tcga.cnas.track$col[which(tcga.cnas.track$value < 0.95)] <- "color=lblue"
+  # tcga.cnas.track$col[which(tcga.cnas.track$value < 0.55)] <- "color=vdblue"
+  # tcga.cnas.track$col[which(tcga.cnas.track$value > 1.05)] <- "color=lred"
+  # tcga.cnas.track$col[which(tcga.cnas.track$value > 2)] <- "color=vdred"
+  tcga.cnas.track$col[which(tcga.cnas.track$value < log2(1/2))] <- "color=lblue"
+  tcga.cnas.track$col[which(tcga.cnas.track$value < log2(1.75/2))] <- "color=vdblue"
+  tcga.cnas.track$col[which(tcga.cnas.track$value > log2(2.25/2))] <- "color=lred"
+  tcga.cnas.track$col[which(tcga.cnas.track$value > log2(3/2))] <- "color=vdred"
   write.table(tcga.cnas.track, sep="\t", quote=F, col.names=F, row.names = F, file=circos.cnas.tcga)
-  
-  # These TCGA values are relative copy numbers so choose appropriate cutoffs for plot similarity based on:
-  # par(mfrow=c(1,2))
-  # plot(cnas.track$value, ylim=c(-1.5,3.5))
-  # abline(h=0.4)
-  # abline(h=0.9)
-  # abline(h=1.1)
-  # abline(h=2)
-  # plot(tcga.cnas.track$value, ylim=c(-0.5,0.5))
-  # abline(h=-0.3)
-  # abline(h=-0.4)
-  # abline(h=-0.3)
-  # abline(h=0.3)
-  # abline(h=0.4)
-  # par(mfrow=c(1,1))
-  #
-  
-  # Make a gxn track
-  cis.gxn$gene <- as.character(cis.gxn$gene)
-  cis.gxn <- cis.gxn[which(cis.gxn$gene %in% rownames(gdata)),]
-  cis.gxn$value <- as.numeric(apply(gdata[cis.gxn$gene,], 1, function(x){ mean(as.numeric(x)) }))
-  cis.gxn$gene <- NULL
-  # Cap outliers for a better plot
-  cis.gxn$value <- removeOutliers(cis.gxn$value)
-  write.table(cis.gxn, sep="\t", quote=F, col.names=F, row.names = F, file=circos.gxn)
-  
   
   # Make a per-patient mutation track
   mut.cols <- list(
@@ -202,13 +178,13 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
                 
                 radius    = 0.95r
                 thickness = 2p
-                fill      = yes
+                fill      = no
                 color     = dgrey
                 
                 show_label       = yes
                 # see etc/fonts.conf for list of font names
                 label_font       = default 
-                label_radius     = 1r + 5p
+                label_radius     = 0.64r #1r + 5p
                 label_size       = 30
                 label_parallel   = yes
                 
@@ -268,14 +244,14 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
                 color            = black
                 file             = ",circos.driver.labels,"
                 r0 = 0.88r
-                r1 = 0.95r
+                r1 = 1.5r
                 
                 show_links     = yes
                 link_dims      = 4p,4p,8p,4p,4p
                 link_thickness = 2p
                 link_color     = red
                 
-                label_size   = 20p
+                label_size   = 28p
                 label_font   = condensed
                 
                 padding  = 0p
@@ -323,18 +299,18 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   
   # Add mutation tracks per-sample
   # Placed at 0.64-0.65; 0.62-0.63 etc.
-  for(i in 1:dim(wgs.pheno)[1]){
-    f <- paste(circos.dir, wgs.pheno$name[i], "_muts.txt", sep="")
-    if(!file.exists(f)){next}
-    text <- paste(text, "
-                  <plot>
-                  type=heatmap
-                  file=",f,"
-                  r1=",0.67-0.02*i-0.0025,"r
-                  r0=",0.67-0.02*i-0.01,"r
-                  </plot>
-                  ", sep="")
-  }
+  # for(i in 1:dim(wgs.pheno)[1]){
+  #   f <- paste(circos.dir, wgs.pheno$name[i], "_muts.txt", sep="")
+  #   if(!file.exists(f)){next}
+  #   text <- paste(text, "
+  #                 <plot>
+  #                 type=heatmap
+  #                 file=",f,"
+  #                 r1=",0.67-0.02*i-0.0025,"r
+  #                 r0=",0.67-0.02*i-0.01,"r
+  #                 </plot>
+  #                 ", sep="")
+  # }
   # Add CNA tracks per-sample, interlaced with above
   for(i in 1:dim(wgs.pheno)[1]){
     f <- paste(circos.dir, wgs.pheno$name[i], "_cnas.txt", sep="")
@@ -343,8 +319,8 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
                   <plot>
                   type=heatmap
                   file=",f,"
-                  r1=",0.67-0.02*i-0.01,"r
-                  r0=",0.67-0.02*i-0.02,"r
+                  r1=",0.65-0.015*i,"r
+                  r0=",0.65-0.015*i-0.01,"r
                   </plot>
                   ", sep="")
   }

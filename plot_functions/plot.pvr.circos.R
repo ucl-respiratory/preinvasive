@@ -18,6 +18,8 @@ plot.pvr.circos <- function(filename, circos.dir=paste(getwd(), "results/circos.
   meth.circos.tcga <- paste(circos.dir, "meth.circosdata.tcga.txt", sep="")
   cnas.prog.circos <- paste(circos.dir, "cna.prog.circosdata.txt", sep="")
   cnas.reg.circos <- paste(circos.dir, "cna.reg.circosdata.txt", sep="")
+  tcga.cnas.prog.circos <- paste(circos.dir, "tcga.cna.prog.circosdata.txt", sep="")
+  tcga.cnas.reg.circos <- paste(circos.dir, "tcga.cna.reg.circosdata.txt", sep="")
   
   # Here we plot PvR data around the genome:
   #   Differentially expressed genes (heatmap)
@@ -146,6 +148,37 @@ plot.pvr.circos <- function(filename, circos.dir=paste(getwd(), "results/circos.
   cna.reg.track$col[which(cna.reg.track$value > 1.1)] <- "color=lred"
   cna.reg.track$col[which(cna.reg.track$value > 2)] <- "color=vdred"
   write.table(cna.reg.track, sep="\t", quote=F, col.names=F, row.names = F, file=cnas.reg.circos)
+  
+  
+  # Add TCGA CNA tracks
+  sel <- which(tcga.cnas.segmented$chr %in% 1:22)
+  tcga.cna.prog.track <- data.frame(
+    chr=paste0("hs",as.character(tcga.cnas.segmented$chr[sel])),
+    start=tcga.cnas.segmented$start[sel],
+    end=tcga.cnas.segmented$end[sel],
+    value=apply(tcga.cnas.segmented[sel,gsub(".grch38.seg.txt", "", as.character(tcga.cnas.pheno$name))[which(tcga.cnas.pheno$progression == 1)]], 1, function(x){ log2(mean(2**x)) })
+  )
+  # Add colours manually
+  tcga.cna.prog.track$col <- "color=vvlgrey"
+  tcga.cna.prog.track$col[which(tcga.cna.prog.track$value < log2(1/2))] <- "color=lblue"
+  tcga.cna.prog.track$col[which(tcga.cna.prog.track$value < log2(1.75/2))] <- "color=vdblue"
+  tcga.cna.prog.track$col[which(tcga.cna.prog.track$value > log2(2.25/2))] <- "color=lred"
+  tcga.cna.prog.track$col[which(tcga.cna.prog.track$value > log2(3/2))] <- "color=vdred"
+  write.table(tcga.cna.prog.track, sep="\t", quote=F, col.names=F, row.names = F, file=tcga.cnas.prog.circos)
+  # Repeat for reg
+  tcga.cna.reg.track <- data.frame(
+    chr=paste0("hs",as.character(tcga.cnas.segmented$chr[sel])),
+    start=tcga.cnas.segmented$start[sel],
+    end=tcga.cnas.segmented$end[sel],
+    value=apply(tcga.cnas.segmented[sel,gsub(".grch38.seg.txt", "", as.character(tcga.cnas.pheno$name))[which(tcga.cnas.pheno$progression == 0)]], 1, function(x){ log2(mean(2**x)) })
+  )
+  tcga.cna.reg.track$col <- "color=vvlgrey"
+  tcga.cna.reg.track$col[which(tcga.cna.reg.track$value < log2(1/2))] <- "color=lblue"
+  tcga.cna.reg.track$col[which(tcga.cna.reg.track$value < log2(1.75/2))] <- "color=vdblue"
+  tcga.cna.reg.track$col[which(tcga.cna.reg.track$value > log2(2.25/2))] <- "color=lred"
+  tcga.cna.reg.track$col[which(tcga.cna.reg.track$value > log2(3/2))] <- "color=vdred"
+  write.table(tcga.cna.reg.track, sep="\t", quote=F, col.names=F, row.names = F, file=tcga.cnas.reg.circos)
+  
   
   # Create the circos config file
   text <- paste("
@@ -311,6 +344,21 @@ plot.pvr.circos <- function(filename, circos.dir=paste(getwd(), "results/circos.
               </background>
               </backgrounds>
               </plot>
+
+# TCGA Prog CNAs
+              <plot>
+                type = heatmap
+                file = ",tcga.cnas.prog.circos,"
+                r1   = 0.425r
+                r0   = 0.4r
+                </plot>
+# TCGA Reg CNAs
+                <plot>
+                type = heatmap
+                file = ",tcga.cnas.reg.circos,"
+                r1   = 0.4r
+                r0   = 0.375r
+                </plot>
 
               </plots>
               ################################################################

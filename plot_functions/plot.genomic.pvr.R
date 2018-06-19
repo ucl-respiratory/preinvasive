@@ -49,20 +49,11 @@ plot.genomic.pvr <- function(filename){
   telomeres <- read.csv('resources/telomere_lengths.csv')
   plotdata$telomeres <- as.numeric(telomeres$Length)[match(plotdata$name, telomeres$Sample)]
   
-  # # Total subs:
-  # plotdata$subcounts <- as.numeric(table(subs.all$patient)[wgs.pheno$name])
-  # sel.na <- which(is.na(plotdata$subcounts))
-  # if(length(sel.na) > 0){ plotdata$subcounts[sel.na] <- 0 }
-  # #plotdata$subcounts <- as.numeric(subs.burden[plotdata$name])
-  # # Total indels:
-  # plotdata$indelcounts <- as.numeric(table(indels.all$patient)[wgs.pheno$name])
-  # sel.na <- which(is.na(plotdata$indelcounts))
-  # if(length(sel.na) > 0){ plotdata$indelcounts[sel.na] <- 0 }
-  # #plotdata$indelcounts <- as.numeric(indels.burden[plotdata$name])
   # # Number of genes affected by a CN change:
-  # plotdata$cna.gene.counts <- as.numeric(apply(cnas.genes.summary[,wgs.pheno$name], 2, function(x){ sum(abs(x), na.rm=T)}))
-  # 
+  plotdata$cna.gene.counts <- as.numeric(apply(cnas.genes.summary[,wgs.pheno$name], 2, function(x){ sum(abs(x), na.rm=T)}))
   
+  # Proportion of mutations which are clonal
+  plotdata$prop.clonal <- plotdata$clonal.muts / (plotdata$clonal.muts + plotdata$subclonal.muts)
   
   
   pdf(filename)
@@ -93,9 +84,11 @@ plot.genomic.pvr <- function(filename){
   # Clonality data - generated in full_analysis.R
   compare.fn(dependent_variable = "nclusters", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
              random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
-  compare.fn(dependent_variable = "dom.clone.proportion", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
-             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
+  # compare.fn(dependent_variable = "dom.clone.proportion", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
+  #            random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
   compare.fn(dependent_variable = "clonal.muts", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
+             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
+  compare.fn(dependent_variable = "prop.clonal", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"), 
              random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
   
  dev.off() 
