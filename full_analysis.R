@@ -818,19 +818,16 @@ plot.mcna.prediction(paste(results_dir, 'Ext_Fig8D-F_cna_prediction.pdf', sep=""
 plot.meth.mhi.pvr.histo(paste(results_dir, 'Ext_Fig9_mhi_sample_histograms_pvr.pdf', sep=""))
 
 ##########################################################################
-# Extended data Figure 10: Methylation Pathway analysis
-#
-# Plotted in Prism from above Excel files.
-#
-# TODO - methylation NEK2 plot
+# Extended data Figure 10: Correlation of wGII with CIN gene expression
 ##########################################################################
 
-##########################################################################
-# Extended data Figure 11: Correlation of wGII with CIN gene expression
-##########################################################################
+plot.cin.gxn.cor(paste0(results_dir, "Ext_Fig10_cin_gxn_cor.pdf"))
 
-plot.cin.gxn.cor(paste0(results_dir, "Ext_Fig11_cin_gxn_cor.pdf"))
 
+##########################################################################
+# Table 1: Demographic data
+##########################################################################
+plot.demographic.table(paste0(results_dir, "Table1_demographics.xls"))
 
 ##########################################################################
 # Supplementary data file 1: list of all driver mutations
