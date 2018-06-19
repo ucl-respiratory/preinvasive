@@ -26,6 +26,7 @@ if(file.exists(cache_file)){
   load(cache_file)
 }else{
   message("Parsing sequencing data. This may take some time.")
+  source('utility_functions/parallel.setup.R')
   source('data_loaders/downloadTcgaData.R')
   source('utility_functions/parseCnaFiles.R')
   
@@ -47,7 +48,7 @@ if(file.exists(cache_file)){
   # Add purity and ploidy data - output from ASCAT analysis
   ascat.output <- read.csv('resources/Ascat_ploidy_purity.csv', stringsAsFactors = F)
   wgs.pheno$purity <- ascat.output$ABBR_CELL_FRAC[match(wgs.pheno$name, ascat.output$SAMPLE)]
-  wgs.pheno$ploidy <- ascat.output$TUM_PLOIDY[match(wgs.pheno$name, ascat.output$SAMPLE)]
+  #wgs.pheno$ploidy <- ascat.output$TUM_PLOIDY[match(wgs.pheno$name, ascat.output$SAMPLE)]
 
   # Additionally mark some samples as 'query regressive' - these samples regressed but subsequently showed evidence of new disease on longer follow up 
   # These were identified from our analysis, hence not included in the input pheno file
@@ -63,7 +64,10 @@ if(file.exists(cache_file)){
   # This creates a large list of mutations with all patients in one file
   # All mutations passing filters are included
   ####################################################################################
-  for(i in 1:dim(wgs.pheno)[1]){
+  # for(i in 1:dim(wgs.pheno)[1]){
+  muts.all <- foreach(i=1:dim(wgs.pheno)[1], .combine='rbind') %dopar% {
+    library(stringr)
+    library(VariantAnnotation)
     pt <- wgs.pheno$name[i]
     print(paste("Processing patient", pt))
     
@@ -209,17 +213,18 @@ if(file.exists(cache_file)){
     muts.pt <- muts.pt[o,]
     
     # Merge
-    if(i == 1){
-      subs.all <- subs.pt
-      indels.all <- indels.pt
-      if(has.rearr){ rearr.all <- rearr.pt }
-      muts.all <- muts.pt
-    }else{
-      subs.all <- rbind(subs.all, subs.pt)
-      indels.all <- rbind(indels.all, indels.pt)
-      if(has.rearr){ rearr.all <- rbind(rearr.all, rearr.pt) }
-      muts.all <- rbind(muts.all, muts.pt)
-    }
+    # if(i == 1){
+    #   subs.all <- subs.pt
+    #   indels.all <- indels.pt
+    #   if(has.rearr){ rearr.all <- rearr.pt }
+    #   muts.all <- muts.pt
+    # }else{
+    #   subs.all <- rbind(subs.all, subs.pt)
+    #   indels.all <- rbind(indels.all, indels.pt)
+    #   if(has.rearr){ rearr.all <- rbind(rearr.all, rearr.pt) }
+    #   muts.all <- rbind(muts.all, muts.pt)
+    # }
+    return(muts.pt)
   }
   
   # Save intermediary step
@@ -515,6 +520,7 @@ if(file.exists(cache_file)){
     ptdata$sample <- pt
     cna.summaries[[pt]] <- ptdata
   }
+  library(GenomicDataCommons)
   cna.summary.list <- rbindlist2(cna.summaries)
   
   # FIND ALL AMPLIFIED AND DELETED GENES IN MULTIPLE SAMPLES 
@@ -540,7 +546,7 @@ if(file.exists(cache_file)){
     samp <- cna.summaries[[i]]
     # Just get the regions of amplification - defined as 2*ploidy + 1
     amp.limit <- 2*wgs.pheno$ploidy[which(wgs.pheno$name == pt)] + 1
-    amp <- samp[samp$total.copy.number.inTumour > 5, ]
+    amp <- samp[samp$total.copy.number.inTumour > amp.limit, ]
     amp_loci <- GRanges(seqnames=amp$Chromosome, ranges=IRanges(start=amp$chromStart, end=amp$chromEnd), seqinfo=seqinfo(refgenome))
     # Find genes
     amplified_genes <- subsetByOverlaps(gene_coord, amp_loci)
@@ -811,7 +817,10 @@ if(file.exists(cache_file)){
   # Include the mean CNA segment values across all cancer samples, corrected for ploidy
   tcga.cnas.segmented.mean <- tcga.cnas.segmented[,1:3]
   #tcga.cnas.segmented.mean$cn <- apply(tcga.cnas.segmented[,4:dim(tcga.cnas.segmented)[2]] / tcga.cnas.ploidys, 1, mean)
-  tcga.cnas.segmented.mean$cn <- apply(tcga.cnas.segmented[,gsub(".grch38.seg.txt", "", as.character(tcga.cnas.pheno$name[which(tcga.cnas.pheno$progression == 1)]))] , 1, mean)
+  sel.ca <- which(tcga.cnas.pheno$progression == 1)
+  tcga.cnas.segmented.mean$cn <- apply(tcga.cnas.segmented[,gsub(".grch38.seg.txt", "", as.character(tcga.cnas.pheno$name[sel.ca]))] , 1, function(x){ log2(mean(2**x)) })
+  
+  
   
   # Sometimes we can collapse this into a smaller data frame using Genomic Ranges if adjacent regions have the same mean:
   range <- GRanges(seqnames = Rle(paste0("chr", tcga.cnas.segmented.mean$chr)), 
@@ -830,11 +839,32 @@ if(file.exists(cache_file)){
     chr=gsub("chr", "", seqnames(x)), start=start(x), end=end(x), cn=as.numeric(names(x))
   )
   
+  # This WXS data has lots of small regions.
+  # Merge regions with a gap < 10kb and the same CN so we don't lose them from our plots.
+  # Again, collapse using GenomicRanges
+  for(i in 2:dim(tcga.cnas.segmented.mean)[1]){
+    if(
+      tcga.cnas.segmented.mean$chr[i] == tcga.cnas.segmented.mean$chr[i-1] &
+      tcga.cnas.segmented.mean$cn[i] == tcga.cnas.segmented.mean$cn[i-1] &
+      tcga.cnas.segmented.mean$start[i] - tcga.cnas.segmented.mean$end[i-1] < 10000
+    ){
+      tcga.cnas.segmented.mean$start[i] <- tcga.cnas.segmented.mean$end[i-1]
+    }
+  }
+  range <- GRanges(seqnames = Rle(paste0("chr", tcga.cnas.segmented.mean$chr)), 
+                   ranges=IRanges(start=tcga.cnas.segmented.mean$start, end=tcga.cnas.segmented.mean$end),
+                   cn=tcga.cnas.segmented.mean$cn)
+  x <- sort(unlist(reduce(split(range, elementMetadata(range)$cn))))
+  tcga.cnas.segmented.mean <- data.frame(
+    chr=gsub("chr", "", seqnames(x)), start=start(x), end=end(x), cn=as.numeric(names(x))
+  )
+  
+  
   ####################################################################################
   # Save output in RData format
   ####################################################################################
   save(
-    subs.all, indels.all, rearr.all,
+    # subs.all, indels.all, rearr.all,
     cna.summary.list,
     cnas.segmented, cnas.segmented.mean,
     cnas.genes.summary, cnas.amps, cnas.dels, 
