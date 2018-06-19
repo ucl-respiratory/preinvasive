@@ -7,11 +7,11 @@ plotRocs <- function(predictor, response){
     scores.class1 = predictor[which(response == 0)],
     curve=T
   )
-  plot(roc)
+  plot(roc, color=F)
   pr<-pr.curve(
     scores.class0 = predictor[which(response == 1)], 
     scores.class1 = predictor[which(response == 0)],
     curve=T
   )
-  plot(pr)
+  plot(pr, color=F)
 }

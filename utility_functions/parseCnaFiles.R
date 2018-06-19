@@ -19,7 +19,12 @@ parseCnaFiles <- function(filenames=c(), is.TCGA=F, my.names=NULL, cnadata=NULL)
       
       if(is.TCGA){
         c <- read.table(filenames[i], sep="\t", stringsAsFactors = F, header = T)
-        pt <- c$Sample[1]
+        colnames(c)[1] <- "Sample" # Newer version calls this column GDC Aliquot
+        # pt <- c$Sample[1]
+        pt <- filenames[i]
+        # pt <- gsub(".grch38.seg.v2.txt", "", filenames[i])
+        pt <- unlist(strsplit(pt, "/"))
+        pt <- pt[length(pt)]
         my.names <- c(my.names, pt)
         c$Sample <- NULL
         c$Num_Probes <- NULL
