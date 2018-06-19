@@ -32,6 +32,7 @@ library(pamr)
 library(affycoretools)
 library(foreach)
 library(doParallel)
+library(GenomicDataCommons)
 
 # Load utility functions
 for(file in list.files("./utility_functions/", full.names = T)){
@@ -68,8 +69,8 @@ overlap.pheno <- read.xls('resources/overlap.samples.xlsx')
 # Read in a list of genes previously associated with lung cancer as defined in the text
 #driver.genes <- read.csv('resources/driver_mutations.csv')
 # Filter for pan-cancer or lusc-specific
-driver.genes <- read.csv('resources/driver_genes.csv', stringsAsFactors = F)
-driver.genes <- unique(driver.genes$Gene)
+driver.genes.info <- read.table('resources/driver_genes.tsv', stringsAsFactors = F, sep="\t", header=T)
+driver.genes <- unique(driver.genes.info$Gene)
 
 
 ##########################################################################
@@ -548,114 +549,50 @@ mut_mat_exonic <- mut_matrix(vcf_list = vcfs.exonic, ref_genome = ref_genome)
 fit_res_exonic <- fit_to_signatures(mut_mat_exonic, cancer_signatures.used)
 type_occurrences_exonic <- mut_type_occurrences(vcfs.exonic, ref_genome)
 
-pdf("mut.test.pdf")
-plot_spectrum(type_occurrences)
-plot_spectrum(type_occurrences_exonic)
-plot_spectrum(as.data.frame(type_occurrences_tcga))
-dev.off()
 
 ##########################################################################
 # Clonality analysis
 ##########################################################################
-
-library(sciClone)
-# Load SNV data
-allpts <- wgs.pheno$name
-snv.clonality <- lapply(allpts, function(x){
-  sel <- which(muts.all$patient == x & muts.all$class == "SNV")
-  df <- data.frame(
-    chr=as.character(muts.all$chr[sel]),
-    pos=muts.all$start[sel],
-    ref_reads=muts.all$ref.reads[sel],
-    var_reads=muts.all$alt.reads[sel],
-    vaf=100*muts.all$alt.reads[sel]/muts.all$tumour.reads[sel]
-  )
-  return(df)
-})
-names(snv.clonality) <- allpts
-
-# Use copy number data:
-#4 columns - chr, start, stop, segment_mean
-cn.clonality <- lapply(allpts, function(x){
-  y <- cnas.segmented[,c("chr", "start", "end", x)]
-  colnames(y) <- c("chr", "start", "stop", "segment_mean")
-  y$chr <- as.character(y$chr)
-  return(y)
-})
-names(cn.clonality) <- allpts
-
-# Make gene annotation data frame
-annot <- muts.all[,c("chr", "start", "gene")]
-colnames(annot) <- c("chr", "pos", "gene")
-sel.rm <- which(duplicated(annot$pos) | is.na(annot$gene))
-if(length(sel.rm) > 0){ annot <- annot[-sel.rm,] }
+# Due to complexity and long processing times, clonality analysis is in a separate file.
+# Data is cached where available.
+source("analysis_functions/clonality.analysis.ccf.R")
 
 
-# For each patient, create a 1D plot and data output
-opdir <- paste(results_dir, "clonality/", sep="")
+# Now analyse the cluster data
+# Create output plots and calculate key attributes per sample - number of clusters and number of clonal/subclonal mutations
+opdir <- paste0(results_dir, "clonality/")
 dir.create(opdir, recursive = T, showWarnings = F)
-# clusterdata <- list()
-# for(pt in allpts){
-#   sc = sciClone(
-#     vafs=snv.clonality[[pt]],
-#     copyNumberCalls=cn.clonality[[pt]],
-#     sampleNames=pt,
-#     minimumDepth = 10,
-#     annotation = annot
-#   )
-#   writeClusterTable(sc, paste(opdir, "clusters_", pt, ".tsv", sep=""))
-#   sc.plot1d(sc, paste(opdir, "clusters_",pt,".1d.pdf", sep=""))  
-#   clusterdata[[pt]] <- sc
-# }
-clusterdata <- foreach(pt=allpts) %dopar% {
-  library(sciClone)
-  sc = sciClone(
-    vafs=snv.clonality[[pt]],
-    copyNumberCalls=cn.clonality[[pt]],
-    sampleNames=pt,
-    minimumDepth = 10,
-    annotation = annot
-  )
-  return(sc)
-}
-names(clusterdata) <- allpts
-save(clusterdata, file = paste0(opdir, "clusterdata.RData"))
-for(pt in allpts){
-  print(pt)
-  sc <- clusterdata[[pt]]
-  writeClusterTable(sc, paste(opdir, "clusters_", pt, ".tsv", sep=""))
-  sc.plot1d(sc, paste(opdir, "clusters_",pt,".1d.pdf", sep=""))
-}
-
-# Analyse clonality per-sample
-# Here we find:
-#   The number of clusters
-#   The proportion of mutations in the dominant clone (i.e. the clone with the most mutations)
-#   The number of clonal mutations (mutations in the cluster with mean VAF nearest 0.5 when corrected for purity)
-# Values added to wgs.pheno are used in plots below.
 wgs.pheno$nclusters <- NA
-wgs.pheno$dom.clone.proportion <- NA
 wgs.pheno$clonal.muts <- NA
+wgs.pheno$subclonal.muts <- NA
+wgs.pheno$muts.in.clonal.cluster <- NA
 for(i in 1:dim(wgs.pheno)[1]){
-  c <- read.table(paste(opdir, "clusters_", wgs.pheno$name[i], ".tsv", sep=""), sep="\t", header = T)
-  c <- c[which(!is.na(c$cluster) & c$cluster > 0),]
-  wgs.pheno$nclusters[i] <- length(unique(c$cluster))
+  sample <- wgs.pheno$name[i]
+  sc <- clusterdata[[sample]]
+  sample.muts <- muts.with.ccf[[sample]]
   
-  # Proportion of substitutions in the dominant clone
-  t <- table(c$cluster)
-  domclone <- names(t)[which(t == max(t))]
-  wgs.pheno$dom.clone.proportion[i] <- t[domclone] / sum(t)
+  if(is.null(sc)){
+    next
+  }
   
-  # Number of fully clonal mutations
-  vaf <- c[,paste0(wgs.pheno$name[i], ".vaf")]
-  clusters <- unique(c$cluster)
+  # Cluster plots
+  writeClusterTable(sc, paste(opdir, "clusters_", sample, ".tsv", sep=""))
+  sc.plot1d(sc, paste(opdir, "clusters_",sample,".1d.pdf", sep=""))
+  
+  # Cluster counts
+  clusters <- unique(sc@vafs.merged$cluster)
+  clusters <- clusters[which(!is.na(clusters) & clusters != 0)]
   cluster.means <- unlist(lapply(clusters, function(x){
-    mean(vaf[which(c$cluster == x)]) / wgs.pheno$purity[i]
+    mean(sc@vafs.merged[which(sc@vafs.merged$cluster == x),5], na.rm = T)
   }))
   names(cluster.means) <- clusters
   clonal.cluster <- names(cluster.means)[which(abs(cluster.means - 50) == min(abs(cluster.means - 50)))]
-  wgs.pheno$clonal.muts[i] <- length(which(c$cluster == clonal.cluster))
-} 
+  wgs.pheno$nclusters[i] <- length(clusters)
+  wgs.pheno$clonal.muts[i] <- length(which(sample.muts$is.clonal))
+  wgs.pheno$subclonal.muts[i] <- length(which(!sample.muts$is.clonal))
+  wgs.pheno$muts.in.clonal.cluster[i] <- length(which(sc@vafs.merged$cluster == clonal.cluster))
+}
+
 
 
 ##########################################################################
@@ -756,12 +693,33 @@ driver.muts <- driver.muts[which(!is.na(driver.muts))]
 
 # Find driver counts per sample for prog vs reg analysis
 driver.muts.all <- rbindlist2(driver.muts)
+
+# Annotate with gene function from driver genes list
+driver.muts.all$Role.in.cancer <- driver.genes.info$Role.in.cancer[match(driver.muts.all$Gene, driver.genes.info$Gene)]
+# Add VEP impact data (exclude CN changes from this)
+sel <- which(!is.na(driver.muts.all$Reference.Allele))
+vep.muts <- vep.annotate(driver.muts.all[sel,])
+driver.muts.all$VEP.impact <- NA
+driver.muts.all$VEP.impact[sel] <- vep.muts$vep.impact
+# Add a flag for genuine drivers:
+driver.muts.all$genuine.driver <- NA
+# For mutations with VEP predictions, mark as genuine driver if impact is high or moderate
+driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$VEP.impact))] <- FALSE
+driver.muts.all$genuine.driver[grep("HIGH|MODERATE", driver.muts.all$VEP.impact)] <- TRUE
+# Oncogenes with CN gain are true drivers, with loss are not:
+driver.muts.all$genuine.driver[intersect(grep("oncogene", driver.muts.all$Role.in.cancer), which(driver.muts.all$Mutation.Type == "CN amplification"))] <- TRUE
+driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$Role.in.cancer) & !grepl("oncogene", driver.muts.all$Role.in.cancer) & driver.muts.all$Mutation.Type == "CN amplification")] <- FALSE
+# Tumour suppressor genes with CN loss are true drivers, with gain are not:
+driver.muts.all$genuine.driver[intersect(grep("TSG", driver.muts.all$Role.in.cancer), which(driver.muts.all$Mutation.Type == "CN deletion"))] <- TRUE
+driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$Role.in.cancer) & !grepl("TSG", driver.muts.all$Role.in.cancer) & driver.muts.all$Mutation.Type == "CN deletion")] <- FALSE
+#WriteXLS(driver.muts.all, ExcelFileName = "results/drivers.for.henry.xls", row.names = T)
+
 wgs.pheno$driver.count <- unlist(lapply(wgs.pheno$name, function(x){
-  length(which(driver.muts.all$Sample == x))
+  length(which(driver.muts.all$Sample == x & driver.muts.all$genuine.driver))
 }))
 
 # Additionally run dndscv to identify novel drivers
-# (Code in separate file)
+# (Code in separate file - no plots created therefore not included here)
 
 ##########################################################################
 # Start of plots
@@ -830,7 +788,9 @@ plot.genomic.pvr(paste(results_dir, "Ext_Fig4_Genomic_PVR_plots.pdf", sep=""))
 # Extended data Figure 5: Clonality
 #
 # Plots are stored in results_dir/clonality by the above code.
+# Here we plot an additional matrix to show shared mutations between samples from the same patient
 ##########################################################################
+plot.genomic.clonality.matrix(paste(results_dir, 'Ext_Fig5_multisample_clonality_matrix.pdf', sep=''))
 
 ##########################################################################
 # Extended data Figure 6: PvR Circos plot
@@ -881,10 +841,18 @@ WriteXLS(driver.muts, ExcelFileName = paste0(results_dir,"Sup_Data1.driver_mutat
 # Supplementary data file 2: Differential expression of GXN, methylation and CNAs
 ##########################################################################
 gdiff.sig <- gdiff[which(gdiff$fdr < 0.01),]
+# Include both DMPs and DMRs
 mdiff.sig <- mdiff[which(mdiff$adj.P.Val < 0.01 & abs(mdiff$deltaBeta) > 0.3),]
+dmrs.sig <- dmrs$ProbeLassoDMR[which(dmrs$ProbeLassoDMR$dmrP < 0.01),]
 cdiff.sig <- cdiff[which(cdiff$fdr < 0.01),]
-WriteXLS(c("gdiff.sig", "mdiff.sig", "cdiff.sig"), ExcelFileName = paste0(results_dir, "Sup_Data2_Differentially_Expressed_Genes.xlsx"), AdjWidth = T,
-         SheetNames = c("DE Genes", "DMPs", "CN bands"), row.names = T)
+WriteXLS(c("gdiff.sig", "mdiff.sig", "dmrs.sig", "cdiff.sig"), ExcelFileName = paste0(results_dir, "Sup_Data2_Differentially_Expressed_Genes.xlsx"), AdjWidth = T,
+         SheetNames = c("DE Genes", "DMPs", "DMRs", "CN bands"), row.names = T)
+
+# Identify consistent genes - increased expression and hypomethylation or decreased expression and hypermethylation
+genes.consistent <- c(
+  intersect(rownames(gdiff.sig)[gdiff.sig$fc > 1], mdiff.sig$gene[mdiff.sig$deltaBeta < 0]),
+  intersect(rownames(gdiff.sig)[gdiff.sig$fc < 1], mdiff.sig$gene[mdiff.sig$deltaBeta > 0])
+)
 
 ##########################################################################
 # Supplementary data file 3: Biological and experimental details of all samples
@@ -898,26 +866,3 @@ WriteXLS(
   c("gxn.gage.summary", "meth.gage.summary"),
   ExcelFileName = paste(results_dir,"Sup_Data4_pathways.xlsx", sep=""), row.names = T, AdjWidth = T
 )
-
-
-
-
-
-########################################################################################################
-# Below not included
-#
-# Extended Data Figure 4C - Methylation-derived CNA Heatmap
-########################################################################################################
-#plot.mcna.heatmap(paste(results_dir, 'Ext_Data4C_cna_heatmap.pdf', sep=""))
-########################################################################################################
-#plot.meth.nek2(paste(results_dir, 'Ext_Data9B_methylation_of_NEK2_probe_by_group.pdf', sep=""))
-
-#plot.genomic.coding.subs.with.tcga(paste(results_dir, "coding_subs_with_tcga.pdf"))
-
-
-
-#plot.genomic.drivers(paste(results_dir, 'Fig2D_drivers.pdf'))
-#plot.genomic.cna.genomewide(paste(results_dir, 'Fig2F_cna_genomewide.pdf', sep=""))
-
-
-
