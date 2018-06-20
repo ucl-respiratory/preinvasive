@@ -26,7 +26,26 @@ All processing functions and downloading of TCGA data are handled by the scripts
 
 ## Genomic Data
 
-Raw genomic data is stored in the European Genome Archive. This code repository does not cover variant calling; this is performed using established tools freely available at https://github.com/cancerit, as described in the Methods section of our paper. Code in this repository works from downstream VCF files.
+Raw genomic data is stored in the European Genome Archive (EGA), accession number EGAD00001003883. Due to the potentially identifiable nature of the data, this is not openly accessible. To recreate this analysis, the reader must go through the EGA data access procedure. 
+
+This code repository does not cover variant calling; this is performed using established tools freely available at https://github.com/cancerit, as described in the Methods section of our paper. Code in this repository works from downstream VCF files, which the reader must generate from BAM files downloaded from EGA.
+
+To run the analysis code in this repository you will need a data/wgs directory containing the following directories:
+
+* ascat - raw ASCAT output as tsv files
+* ascat_summary - summary copy number profiles
+* caveman - output of Caveman SNV calling in VCF format
+* pindel - output of Pindel insertion-deletion calling in VCF format
+* brass - output of Brass rearrangement calling in VCF format
+* pileups - multi-sample pileup files for each patient
+
+Please contact the EGA directly with any queries regarding data access.
+
+## TCGA Data
+
+Gene expression and methylation analyses use open-access microarray data downloaded directly from TCGA. Code to download these is included in the data_loaders directory.
+
+Mutation data from TCGA is not open access. It was downloaded under an agreement between TCGA and the Sanger Institute. Variant calling was performed on raw data using the same methods described in the paper. We are not able to share these data directly with this paper. Should the reader wish to repeat our comparisons with TCGA data, similar results can be obtained using open-access masked TCGA data (removing germline mutations), but please be aware that minor differences may be present.
 
 ## Dependencies
 
@@ -44,9 +63,9 @@ Rscript install_dependencies.R
   
 This installs the latest versions of all required packages. Should you experience any issues we recommend installing the specific versions detailed in resources/package.versions.csv.
 
-The ChAMP package contains issues in plotting CNA profiles. As such, please install ChAMP from the authors' account using the following:
+The ChAMP package contains issues in plotting CNA profiles. As such, please install ChAMP from the authors' account using the following (as per the install_dependencies.R file):
 
 ```r
 library(devtools)
-install_github("adamp83/ChAMP")
+install_github("ucl-respiratory/ChAMP")
 ```

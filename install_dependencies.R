@@ -63,7 +63,7 @@ if(length(to.install) > 0){
     # It is therefore downloaded from the authors' github page, which is publically accessible
     if(pkg == "ChAMP"){
       library(devtools)
-      install_github("adamp83/ChAMP")
+      install_github("ucl-respiratory/ChAMP")
     }else{
       if(pkg == "dndscv"){
         library(devtools)
