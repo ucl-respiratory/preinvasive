@@ -8,7 +8,7 @@ plot.meth.prediction <- function(filename){
   
   # Plot discovery set probabilities from cross-validated model
   meth.prob.prog <- meth.pamr.mycv$prob[,2,meth.threshold.id]
-  plot(meth.prob.prog, col=c("green", "red")[meth.pamr.traindata$y + 1], ylab="Progression Score", main='Cross-validated prediction model - discovery set')
+  plot(meth.prob.prog, col=c("green", "red", "blue")[factor(meth.pamr.traindata$group, levels=c("Regressive", "Progressive", "Control"))], ylab="Progression Score", main='Cross-validated prediction model - discovery set')
   abline(v=length(which(meth.pamr.traindata$y == meth.pamr.traindata$y[1]))+0.5, col='grey')
   
   if(show.legends){
@@ -18,7 +18,7 @@ plot.meth.prediction <- function(filename){
   
   # Plot validation set
   meth.pamr.pred.v <- pamr.predict(meth.pamr.trainfit, newx=meth.pamr.testdata$x, type='posterior', threshold=meth.threshold)
-  plot(meth.pamr.pred.v[,2], col=c("green", "red")[as.numeric(as.character(meth.pamr.testdata$y)) + 1], main="Validation Set", ylab="Progression Score", ylim=c(0,1))
+  plot(meth.pamr.pred.v[,2], col=c("green", "red", "blue")[factor(meth.pamr.testdata$group, levels=c("Regressive", "Progressive", "Control"))], main="Validation Set", ylab="Progression Score", ylim=c(0,1))
   abline(v=length(which(meth.pamr.testdata$y == meth.pamr.testdata$y[1]))+0.5, col='grey')
   meth.roc.v <- roc(predictor=meth.pamr.pred.v[,2], response=meth.pamr.testdata$y)
   if(show.legends){

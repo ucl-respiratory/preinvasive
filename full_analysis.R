@@ -69,8 +69,11 @@ overlap.pheno <- read.xls('resources/overlap.samples.xlsx')
 # Read in a list of genes previously associated with lung cancer as defined in the text
 #driver.genes <- read.csv('resources/driver_mutations.csv')
 # Filter for pan-cancer or lusc-specific
-driver.genes.info <- read.table('resources/driver_genes.tsv', stringsAsFactors = F, sep="\t", header=T)
-driver.genes <- unique(driver.genes.info$Gene)
+#driver.genes.info <- read.table('resources/driver_genes.tsv', stringsAsFactors = F, sep="\t", header=T)
+#driver.genes <- unique(driver.genes.info$Gene)
+#load("resources/cgc.genes.RData")
+driver.genes.info <- read.xls('resources/driver.genes.xls', stringsAsFactors=F)
+driver.genes <- driver.genes.info$Gene.Symbol
 
 
 ##########################################################################
@@ -279,22 +282,26 @@ pamr.mdata <- pamr.mdata[,o]
 pamr.mpheno <- pamr.mpheno[o,]
 
 sel <- which(pamr.mpheno$train == 1 & pamr.mpheno$source == "Surveillance")
+# Note that for methylation we compare progressive vs (regressive + control) but include group data here for plots
 meth.pamr.traindata <- list(
   x=as.matrix(pamr.mdata[mvps.shared,sel]),
   y=pamr.mpheno$progression[sel],
-  geneid = mvps.shared
+  geneid = mvps.shared,
+  group = pamr.mpheno$Sample_Group[sel]
 )
 sel <- which(pamr.mpheno$train == 0 & pamr.mpheno$source == "Surveillance")
 meth.pamr.testdata <- list(
   x=as.matrix(pamr.mdata[mvps.shared,sel]),
   y=pamr.mpheno$progression[sel],
-  geneid = mvps.shared
+  geneid = mvps.shared,
+  group = pamr.mpheno$Sample_Group[sel]
 )
 sel <- which(pamr.mpheno$source == "TCGA")
 meth.pamr.tcgadata <- list(
   x=as.matrix(pamr.mdata[mvps.shared,sel]),
   y=pamr.mpheno$progression[sel],
-  geneid = mvps.shared
+  geneid = mvps.shared,
+  group = pamr.mpheno$Sample_Group[sel]
 )
 
 # Train the model and apply k-fold cross-validation
@@ -662,10 +669,10 @@ df <- data.frame(
   filters="PASS",
   asmd=140,
   clpm=0,
-  vaf=NA,ref.reads=NA,alt.reads=NA,tumour.reads=NA,depth=NA,exonic=NA,protein.change=NA,filters.passed=T,mid=NA
+  vaf=NA,ref.reads=NA,alt.reads=NA,tumour.reads=NA,depth=NA,exonic=NA,protein.change=NA,filters.passed=T,mid=NA,translocation.partner=NA,chr2=NA,start2=NA,end2=NA
 )
 muts.all.cn <- rbind(
-  muts.all[which(muts.all$type %in% c("missense", "nonsense", "start_lost", "stop_lost", "ess_splice", "splice_region", "frameshift", "inframe", "SO:0000010:protein_coding", "CN amplification", "CN deletion")),]
+  muts.all[which(muts.all$type %in% c("missense", "nonsense", "start_lost", "stop_lost", "ess_splice", "splice_region", "frameshift", "inframe", "SO:0000010:protein_coding", "CN amplification", "CN deletion", "Rearrangement")),]
   , df)
 
 # Select for driver genes:
@@ -684,6 +691,10 @@ driver.muts <- lapply(driver.genes.sorted, function(x){
     Reference.Allele=m$ref,
     Variant.Allele=m$alt,
     Protein.Change=m$protein.change,
+    Transloc.Chr=m$chr2,
+    Transloc.Start=m$start2,
+    Transloc.End=m$end2,
+    Transloc.Gene=m$translocation.partner,
     Outcome=c("Regression", "Progression")[wgs.pheno$progression[match(m$patient, wgs.pheno$name)]+1]
   )
   return(df[order(df$Sample),])
@@ -695,23 +706,50 @@ driver.muts <- driver.muts[which(!is.na(driver.muts))]
 driver.muts.all <- rbindlist2(driver.muts)
 
 # Annotate with gene function from driver genes list
-driver.muts.all$Role.in.cancer <- driver.genes.info$Role.in.cancer[match(driver.muts.all$Gene, driver.genes.info$Gene)]
+driver.muts.all$Role.in.Cancer <- cgc.genes$Role.in.Cancer[match(driver.muts.all$Gene, cgc.genes$Gene.Symbol)]
+driver.muts.all$CGC.Tier <- cgc.genes$Tier[match(driver.muts.all$Gene, cgc.genes$Gene.Symbol)]
+driver.muts.all$Validated.Mut.Types <- cgc.genes$Mutation.Types[match(driver.muts.all$Gene, cgc.genes$Gene.Symbol)]
+driver.muts.all$Validated.Transloc.Partner <- cgc.genes$Translocation.Partner[match(driver.muts.all$Gene, cgc.genes$Gene.Symbol)]
 # Add VEP impact data (exclude CN changes from this)
 sel <- which(!is.na(driver.muts.all$Reference.Allele))
 vep.muts <- vep.annotate(driver.muts.all[sel,])
 driver.muts.all$VEP.impact <- NA
 driver.muts.all$VEP.impact[sel] <- vep.muts$vep.impact
+
 # Add a flag for genuine drivers:
-driver.muts.all$genuine.driver <- NA
+driver.muts.all$genuine.driver <- F
+
+# Check the mutation type against CGC validated mutation types
+# Types are: A, D, Mis, N, F, T, S, O
+driver.muts.all$genuine.driver[intersect(grep("A", driver.muts.all$Validated.Mut.Types), which(driver.muts.all$Mutation.Type == "CN amplification"))] <- T
+driver.muts.all$genuine.driver[intersect(grep("D", driver.muts.all$Validated.Mut.Types), which(driver.muts.all$Mutation.Type == "CN deletion"))] <- T
+driver.muts.all$genuine.driver[intersect(grep("Mis", driver.muts.all$Validated.Mut.Types), which(driver.muts.all$Mutation.Type == "missense"))] <- T
+driver.muts.all$genuine.driver[intersect(grep("N", driver.muts.all$Validated.Mut.Types), which(driver.muts.all$Mutation.Type == "nonsense"))] <- T
+driver.muts.all$genuine.driver[intersect(grep("F", driver.muts.all$Validated.Mut.Types), which(driver.muts.all$Mutation.Type == "frameshift"))] <- T
+driver.muts.all$genuine.driver[intersect(grep("S", driver.muts.all$Validated.Mut.Types), grep("splice", driver.muts.all$Mutation.Type))] <- T
+# For tranlocations also check the translocated gene is the right gene
+rearr.filt <- which(
+  driver.muts.all$Mutation.Type == "Rearrangement" &
+  grepl("T", driver.muts.all$Validated.Mut.Types) &
+  driver.muts.all$Transloc.Gene == driver.muts.all$Validated.Transloc.Partner
+)
+if(length(rearr.filt) > 0){
+  driver.muts.all$genuine.driver[rearr.filt] <- T
+}
+
+# As a further check, filter out any mutation with a VEP score less than moderate/high
+vep.filter <- !is.na(driver.muts.all$VEP.impact) & !grepl("HIGH|MODERATE", driver.muts.all$VEP.impact)
+driver.muts.all$genuine.driver[vep.filter] <- F
+
 # For mutations with VEP predictions, mark as genuine driver if impact is high or moderate
-driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$VEP.impact))] <- FALSE
-driver.muts.all$genuine.driver[grep("HIGH|MODERATE", driver.muts.all$VEP.impact)] <- TRUE
-# Oncogenes with CN gain are true drivers, with loss are not:
-driver.muts.all$genuine.driver[intersect(grep("oncogene", driver.muts.all$Role.in.cancer), which(driver.muts.all$Mutation.Type == "CN amplification"))] <- TRUE
-driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$Role.in.cancer) & !grepl("oncogene", driver.muts.all$Role.in.cancer) & driver.muts.all$Mutation.Type == "CN amplification")] <- FALSE
-# Tumour suppressor genes with CN loss are true drivers, with gain are not:
-driver.muts.all$genuine.driver[intersect(grep("TSG", driver.muts.all$Role.in.cancer), which(driver.muts.all$Mutation.Type == "CN deletion"))] <- TRUE
-driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$Role.in.cancer) & !grepl("TSG", driver.muts.all$Role.in.cancer) & driver.muts.all$Mutation.Type == "CN deletion")] <- FALSE
+# driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$VEP.impact))] <- FALSE
+# driver.muts.all$genuine.driver[grep("HIGH|MODERATE", driver.muts.all$VEP.impact)] <- TRUE
+# # Oncogenes with CN gain are true drivers, with loss are not:
+# driver.muts.all$genuine.driver[intersect(grep("oncogene", driver.muts.all$Role.in.cancer), which(driver.muts.all$Mutation.Type == "CN amplification"))] <- TRUE
+# driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$Role.in.cancer) & !grepl("oncogene", driver.muts.all$Role.in.cancer) & driver.muts.all$Mutation.Type == "CN amplification")] <- FALSE
+# # Tumour suppressor genes with CN loss are true drivers, with gain are not:
+# driver.muts.all$genuine.driver[intersect(grep("TSG", driver.muts.all$Role.in.cancer), which(driver.muts.all$Mutation.Type == "CN deletion"))] <- TRUE
+# driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$Role.in.cancer) & !grepl("TSG", driver.muts.all$Role.in.cancer) & driver.muts.all$Mutation.Type == "CN deletion")] <- FALSE
 #WriteXLS(driver.muts.all, ExcelFileName = "results/drivers.for.henry.xls", row.names = T)
 
 wgs.pheno$driver.count <- unlist(lapply(wgs.pheno$name, function(x){
@@ -752,12 +790,12 @@ plot.meth.mhi.cvc.histo(paste(results_dir, 'Fig4F_mhi_sample_histograms.pdf', se
 # Figure 5: GXN Pathway analysis and CIN gene plots. Methylation output also done here.
 # Note we do not make plots in this file, just Excel output for plotting in Prism.
 ##########################################################################
+
+plot.gxn.cin.expression(paste(results_dir, 'Fig5A-B_CIN_mean_expression.pdf', sep=""))
 WriteXLS(
   "gxn.gage.summary",
-  ExcelFileName = paste(results_dir,"Fig_5A_data_gxn_pathways.xlsx", sep=""), row.names = T, AdjWidth = T
+  ExcelFileName = paste(results_dir,"Fig5C_data_gxn_pathways.xlsx", sep=""), row.names = T, AdjWidth = T
 )
-plot.gxn.cin.expression(paste(results_dir, 'Fig5B_CIN_mean_expression.pdf', sep=""))
-plot.gxn.nek2.by.group(paste(results_dir, 'Fig5C_NEK2_by_group.pdf', sep=""))
 WriteXLS(
   "meth.gage.summary",
   ExcelFileName = paste(results_dir,"Fig5D_methyl_pathways.xlsx", sep=""), row.names = T, AdjWidth = T

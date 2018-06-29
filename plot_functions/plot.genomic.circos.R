@@ -97,9 +97,9 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   cnas.track <- cnas.track[which(!(cnas.track$chr %in% c('hsX', "hsY"))),]
   # Add colours manually
   cnas.track$col <- "color=vvlgrey"
-  cnas.track$col[which(cnas.track$value < 0.95)] <- "color=lblue"
-  cnas.track$col[which(cnas.track$value < 0.55)] <- "color=vdblue"
-  cnas.track$col[which(cnas.track$value > 1.05)] <- "color=lred"
+  cnas.track$col[which(cnas.track$value < 0.75)] <- "color=lblue"
+  cnas.track$col[which(cnas.track$value < 0.5)] <- "color=vdblue"
+  cnas.track$col[which(cnas.track$value > 1.25)] <- "color=lred"
   cnas.track$col[which(cnas.track$value > 2)] <- "color=vdred"
   write.table(cnas.track, sep="\t", quote=F, col.names=F, row.names = F, file=circos.cnas)
   
@@ -113,14 +113,14 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   # tcga.cnas.track$value <- 2**tcga.cnas.track$value
   # Add colours manually
   tcga.cnas.track$col <- "color=vvlgrey"
-  # tcga.cnas.track$col[which(tcga.cnas.track$value < 0.95)] <- "color=lblue"
-  # tcga.cnas.track$col[which(tcga.cnas.track$value < 0.55)] <- "color=vdblue"
-  # tcga.cnas.track$col[which(tcga.cnas.track$value > 1.05)] <- "color=lred"
-  # tcga.cnas.track$col[which(tcga.cnas.track$value > 2)] <- "color=vdred"
-  tcga.cnas.track$col[which(tcga.cnas.track$value < log2(1/2))] <- "color=lblue"
-  tcga.cnas.track$col[which(tcga.cnas.track$value < log2(1.75/2))] <- "color=vdblue"
-  tcga.cnas.track$col[which(tcga.cnas.track$value > log2(2.25/2))] <- "color=lred"
-  tcga.cnas.track$col[which(tcga.cnas.track$value > log2(3/2))] <- "color=vdred"
+  tcga.cnas.track$col[which(tcga.cnas.track$value < 0.75)] <- "color=lblue"
+  tcga.cnas.track$col[which(tcga.cnas.track$value < 0.5)] <- "color=vdblue"
+  tcga.cnas.track$col[which(tcga.cnas.track$value > 1.25)] <- "color=lred"
+  tcga.cnas.track$col[which(tcga.cnas.track$value > 2)] <- "color=vdred"
+  # tcga.cnas.track$col[which(tcga.cnas.track$value < log2(1/2))] <- "color=lblue"
+  # tcga.cnas.track$col[which(tcga.cnas.track$value < log2(1.75/2))] <- "color=vdblue"
+  # tcga.cnas.track$col[which(tcga.cnas.track$value > log2(2.25/2))] <- "color=lred"
+  # tcga.cnas.track$col[which(tcga.cnas.track$value > log2(3/2))] <- "color=vdred"
   write.table(tcga.cnas.track, sep="\t", quote=F, col.names=F, row.names = F, file=circos.cnas.tcga)
   
   # Make a per-patient mutation track

@@ -26,7 +26,6 @@ if(file.exists(cache_file)){
   load(cache_file)
 }else{
   message("Parsing sequencing data. This may take some time.")
-  source('utility_functions/parallel.setup.R')
   source('data_loaders/downloadTcgaData.R')
   source('utility_functions/parseCnaFiles.R')
   
@@ -64,10 +63,7 @@ if(file.exists(cache_file)){
   # This creates a large list of mutations with all patients in one file
   # All mutations passing filters are included
   ####################################################################################
-  # for(i in 1:dim(wgs.pheno)[1]){
-  muts.all <- foreach(i=1:dim(wgs.pheno)[1], .combine='rbind') %dopar% {
-    library(stringr)
-    library(VariantAnnotation)
+  for(i in 1:dim(wgs.pheno)[1]){
     pt <- wgs.pheno$name[i]
     print(paste("Processing patient", pt))
     
@@ -178,32 +174,32 @@ if(file.exists(cache_file)){
     )
     
     # Read rearrangements
-    has.rearr <- length(brass.file) > 0
-    if(has.rearr){
-      vcf <- readVcf(brass.file)
-      rr <- rowRanges(vcf)
-      rearr.pt <- data.frame(
-        patient=pt,
-        gene=readInfo(brass.file, x='GENE'),
-        class="Rearrangement",
-        type=readInfo(brass.file, x='SVTYPE'),
-        ref=as.character(ref(vcf)),
-        alt=as.character(alt(vcf)),
-        chr=as.character(seqnames(rr)),
-        start=start(ranges(rr)),
-        end=end(ranges(rr)),
-        filters=fixed(vcf)$FILTER,
-        asmd=1000, # Rearrangements should automatically pass these filters
-        clpm=0,
-        vaf=NA, # Clonality based on subs only
-        ref.reads=NA,
-        alt.reads=NA,
-        tumour.reads=NA,
-        depth=NA,
-        exonic=F, # We don't compare rearrangements to TCGA so can skip this
-        protein.change=NA
-      )
-    }
+    # has.rearr <- length(brass.file) > 0
+    # if(has.rearr){
+    #   vcf <- readVcf(brass.file)
+    #   rr <- rowRanges(vcf)
+    #   rearr.pt <- data.frame(
+    #     patient=pt,
+    #     gene=readInfo(brass.file, x='GENE'),
+    #     class="Rearrangement",
+    #     type=readInfo(brass.file, x='SVTYPE'),
+    #     ref=as.character(ref(vcf)),
+    #     alt=as.character(alt(vcf)),
+    #     chr=as.character(seqnames(rr)),
+    #     start=start(ranges(rr)),
+    #     end=end(ranges(rr)),
+    #     filters=fixed(vcf)$FILTER,
+    #     asmd=1000, # Rearrangements should automatically pass these filters
+    #     clpm=0,
+    #     vaf=NA, # Clonality based on subs only
+    #     ref.reads=NA,
+    #     alt.reads=NA,
+    #     tumour.reads=NA,
+    #     depth=NA,
+    #     exonic=F, # We don't compare rearrangements to TCGA so can skip this
+    #     protein.change=NA
+    #   )
+    # }
     
     
     # Merge subs and indels
@@ -213,18 +209,17 @@ if(file.exists(cache_file)){
     muts.pt <- muts.pt[o,]
     
     # Merge
-    # if(i == 1){
-    #   subs.all <- subs.pt
-    #   indels.all <- indels.pt
-    #   if(has.rearr){ rearr.all <- rearr.pt }
-    #   muts.all <- muts.pt
-    # }else{
-    #   subs.all <- rbind(subs.all, subs.pt)
-    #   indels.all <- rbind(indels.all, indels.pt)
-    #   if(has.rearr){ rearr.all <- rbind(rearr.all, rearr.pt) }
-    #   muts.all <- rbind(muts.all, muts.pt)
-    # }
-    return(muts.pt)
+    if(i == 1){
+      subs.all <- subs.pt
+      indels.all <- indels.pt
+      if(has.rearr){ rearr.all <- rearr.pt }
+      muts.all <- muts.pt
+    }else{
+      subs.all <- rbind(subs.all, subs.pt)
+      indels.all <- rbind(indels.all, indels.pt)
+      if(has.rearr){ rearr.all <- rbind(rearr.all, rearr.pt) }
+      muts.all <- rbind(muts.all, muts.pt)
+    }
   }
   
   # Save intermediary step
@@ -367,6 +362,48 @@ if(file.exists(cache_file)){
   # Count coding mutations by sample
   muts.coding.counts <- apply(muts, 2, sum)
   
+  ####################################################################################
+  # Add Rearrangements
+  #
+  # These are pre-processed as described in the main text.
+  # 
+  ####################################################################################
+  rearrangements.all <- read.table('resources/private/no_germ_reassembled_3_reads.txt', header=T, stringsAsFactors = F, sep="\t")
+  
+  rearrs <- data.frame(
+    patient=rearrangements.all$sample,
+    gene=rearrangements.all$gene1,
+    class="R",
+    type="Rearrangement",
+    ref=NA,
+    alt=NA,
+    chr=rearrangements.all$chr1,
+    start=rearrangements.all$start1,
+    end=rearrangements.all$end1,
+    filters="PASS",
+    asmd=1000, # Should automatically pass these filters
+    clpm=0,
+    vaf=NA, # Clonality based on subs only
+    ref.reads=NA,
+    alt.reads=NA,
+    tumour.reads=NA,
+    depth=NA,
+    exonic=grepl("exon", rearrangements.all$region1) | grepl("exon", rearrangements.all$region2),
+    protein.change=NA,
+    filters.passed=T,
+    translocation.partner=rearrangements.all$gene2,
+    mid=paste(rearrangements.all$chr1, rearrangements.all$start1, rearrangements.all$start2, rearrangements.all$chr2, rearrangements.all$start2, rearrangements.all$end2),
+    chr2=rearrangements.all$chr2,
+    start2=rearrangements.all$start2,
+    end2=rearrangements.all$end2
+  )
+  
+  muts.all$translocation.partner <- NA
+  muts.all$chr2 <- NA
+  muts.all$start2 <- NA
+  muts.all$end2 <- NA
+  
+  muts.all <- rbind(muts.all, rearrs)
   
   ####################################################################################
   # Load Copy Number Alteration (CNA) summary profiles
@@ -786,85 +823,48 @@ if(file.exists(cache_file)){
   tcga.snvs.rates <- as.list(tcga.snvs.rates.data$V2)
   names(tcga.snvs.rates) <- tcga.snvs.rates.data$V1
 
-  # TCGA copy number data
-  # We load GISTIC data from TCGA - we cannot use the same methods for CIS and TCGA here due to differences between whole genome and whole exome sequencing
-  # Pass these data into our parsing function
-  # x <- load('resources/tcga.lusc.seg.hg19.rdata')
-  # x <- seg.mat.copy.list$segments
-  # names <- unique(x$SampleID)
-  # cnadata <- list()
-  # for(name in names){
-  #   cnadata[[name]] <- x[which(x$SampleID == name),c("Chr", "Start", "End", "cn")]
-  #   colnames(cnadata[[name]]) <- c("chr", "start", "end", "cn")
-  # }
-  # x <- parseCnaFiles(names=names, cnadata=cnadata)
-  
+
+  # TCGA CNA data
+  # Relative GISTIC data used for comparison with methylation-derived CNA probes in prediction
   x <- downloadTcgaData(
     d_type="Copy Number Segment",
     w_type = "DNAcopy",
     cache_dir="./data/wgs/tcga_cnv"
   )
-  tcga.cnas.segmented <- x[[1]]
+  # tcga.cnas.segmented <- x[[1]]
   tcga.cnas.bands     <- x[[2]]
   tcga.cnas.genes     <- x[[3]]
   tcga.cnas.pheno <- x[[4]]
-  # tcga.cnas.ploidys <- as.numeric(unlist(lapply(names, function(name){
-  #   seg.mat.copy.list$segments$Ploidy[which(seg.mat.copy.list$segments$SampleID == name)][[1]]
-  # })))
   
+  # TCGA CNA data - ASCAT
+  # ASCAT CN data used for comparison with CIS ASCAT data (fig 2)
+  load("resources/private/tcga.lusc.seg.hg19.rdata")
+  tcga.cnas.segmented.data <- seg.mat.copy.list$segments
+  tcga.cna.samples <- unique(tcga.cnas.segmented.data$SampleID)
   
+  # Convert to minimum consistent regions format
+  tcga.cnas.segmented <- convertCNAtoMCR(tcga.cnas.segmented.data)
+  
+  # Correct for ploidy
+  tcga.ploidys <- lapply(tcga.cna.samples, function(x){
+    fun.ploidy(x, tcga.cnas.segmented.data)
+  })
+  names(tcga.ploidys) <- tcga.cna.samples
+  for(sample in tcga.cna.samples){
+    tcga.cnas.segmented[,sample] <- tcga.cnas.segmented[,sample] / as.numeric(tcga.ploidys[[sample]])
+  }
   # Add a mean value for tcga.cnas.segmented
   # Include the mean CNA segment values across all cancer samples, corrected for ploidy
   tcga.cnas.segmented.mean <- tcga.cnas.segmented[,1:3]
-  #tcga.cnas.segmented.mean$cn <- apply(tcga.cnas.segmented[,4:dim(tcga.cnas.segmented)[2]] / tcga.cnas.ploidys, 1, mean)
-  sel.ca <- which(tcga.cnas.pheno$progression == 1)
-  tcga.cnas.segmented.mean$cn <- apply(tcga.cnas.segmented[,gsub(".grch38.seg.txt", "", as.character(tcga.cnas.pheno$name[sel.ca]))] , 1, function(x){ log2(mean(2**x)) })
+  tcga.cnas.segmented.mean$cn <- apply(tcga.cnas.segmented[,4:dim(tcga.cnas.segmented)[2]] , 1, mean )
   
-  
-  
-  # Sometimes we can collapse this into a smaller data frame using Genomic Ranges if adjacent regions have the same mean:
-  range <- GRanges(seqnames = Rle(paste0("chr", tcga.cnas.segmented.mean$chr)), 
-                   ranges=IRanges(start=tcga.cnas.segmented.mean$start, end=tcga.cnas.segmented.mean$end),
-                   cn=tcga.cnas.segmented.mean$cn)
-  
-  # We also need to map grch38 TCGA data to grch37 (== hg19):
-  library(rtracklayer)
-  chain <- import.chain("resources/hg38ToHg19.over.chain")
-  x.hg19 <- unlist(liftOver(range, chain))
-  
-  # Merge together
-  x <- sort(unlist(reduce(split(x.hg19, elementMetadata(x.hg19)$cn))))
-  
-  tcga.cnas.segmented.mean <- data.frame(
-    chr=gsub("chr", "", seqnames(x)), start=start(x), end=end(x), cn=as.numeric(names(x))
-  )
-  
-  # This WXS data has lots of small regions.
-  # Merge regions with a gap < 10kb and the same CN so we don't lose them from our plots.
-  # Again, collapse using GenomicRanges
-  for(i in 2:dim(tcga.cnas.segmented.mean)[1]){
-    if(
-      tcga.cnas.segmented.mean$chr[i] == tcga.cnas.segmented.mean$chr[i-1] &
-      tcga.cnas.segmented.mean$cn[i] == tcga.cnas.segmented.mean$cn[i-1] &
-      tcga.cnas.segmented.mean$start[i] - tcga.cnas.segmented.mean$end[i-1] < 10000
-    ){
-      tcga.cnas.segmented.mean$start[i] <- tcga.cnas.segmented.mean$end[i-1]
-    }
-  }
-  range <- GRanges(seqnames = Rle(paste0("chr", tcga.cnas.segmented.mean$chr)), 
-                   ranges=IRanges(start=tcga.cnas.segmented.mean$start, end=tcga.cnas.segmented.mean$end),
-                   cn=tcga.cnas.segmented.mean$cn)
-  x <- sort(unlist(reduce(split(range, elementMetadata(range)$cn))))
-  tcga.cnas.segmented.mean <- data.frame(
-    chr=gsub("chr", "", seqnames(x)), start=start(x), end=end(x), cn=as.numeric(names(x))
-  )
   
   
   ####################################################################################
   # Save output in RData format
   ####################################################################################
   save(
-    # subs.all, indels.all, rearr.all,
+    subs.all, indels.all, rearrangements.all,
     cna.summary.list,
     cnas.segmented, cnas.segmented.mean,
     cnas.genes.summary, cnas.amps, cnas.dels, 
