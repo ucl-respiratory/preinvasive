@@ -36,6 +36,7 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   
   cache_dir <- paste(data_cache, "meth/geo", sep="")
   geo.file <- paste(cache_dir, "/meth.geo.data.tar", sep="")
+  gdc_set_cache("./data/gdc")
   
   if(!file.exists(geo.file)){
     # Download IDAT files directly from GEO
@@ -54,7 +55,7 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   # Unzip individual idat files
   files <- list.files(cache_dir, pattern=".gz$", full.names = T)
   for(file in files){
-    system(paste("gunzip", file))
+    system(paste("gunzip -f", file))
   }
   # Remove CSV files as these confuse the ChAMP loader
   csv.files <- list.files(cache_dir, pattern=".csv$", full.names = T)
@@ -103,8 +104,8 @@ if(file.exists(cache_file) & file.exists(cache_file_cna)){
   x <- downloadTcgaData(
     w_type = "Liftover", 
     d_type = "Methylation Beta Value",
-    pform="Illumina Human Methylation 450",
-    cache_dir="./data/meth/tcga"
+    pform="Illumina Human Methylation 450"#,
+    #cache_dir="./data/meth/tcga"
   )
   tcga.mdata  <- x[[1]]
   tcga.mpheno <- x[[2]]

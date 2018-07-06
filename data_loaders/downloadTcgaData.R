@@ -8,11 +8,14 @@ library(maftools)
 downloadTcgaData <- function(
   w_type = "HTSeq - Counts",
   d_type = "Gene Expression Quantification",
-  pform = NULL,
-  cache_dir="./data/gxn/tcga"
+  pform = NULL#,
+  #cache_dir="./data/gxn/tcga"
 ){
+  cache_dir <- './data/gdc'
+  gdc_set_cache(cache_dir)
   
   print(paste("Downloading", d_type, "data from TCGA"))
+  source("utility_functions/parallel.setup.R")
   
   # Download tumour and controls matching our file specifications
   fileResults <- files() %>%
@@ -36,7 +39,7 @@ downloadTcgaData <- function(
   # Somatic mutations are a different file format so handle separately.
   if(d_type == "Masked Somatic Mutation"){
     # Download the files
-    files <- gdcdata(unique(as.character(cases$file_id)), progress=F, destination_dir = cache_dir)
+    files <- gdcdata(unique(as.character(cases$file_id)), progress=F)
     
     # We expect only one file here - gzipped MAF
     if(length(files) != 1){
@@ -56,14 +59,15 @@ downloadTcgaData <- function(
   
   # Ongoing code is for any type other than somatic mutations
   cases$sample_type <- unlist(lapply(1:dim(cases)[1], function(i){
-    cases$cases.samples[i][[1]]$sample_type
+    # cases$cases.samples[i][[1]]$sample_type
+    fileResults$cases[[as.character(cases$file_id[i])]]$samples[[1]]$sample_type
   }))
   
   # Download the files - ignore cached files
   cached_files <- c()
   to.download <- c()
   for(i in 1:dim(cases)[1]){
-    f <- list.files(cache_dir, pattern=as.character(cases$file_name[i]), full.names = T)
+    f <- list.files(cache_dir, pattern=as.character(cases$file_name[i]), full.names = T, recursive = T)
     if(length(f) > 0){
       cached_files <- c(cached_files, f)
     }else{
@@ -71,9 +75,17 @@ downloadTcgaData <- function(
     }
   }
   if(length(to.download) > 0){
-    files <- gdcdata(as.character(cases$file_id), progress=F, destination_dir = cache_dir)
+    files <- gdcdata(as.character(cases$file_id), progress=F)
+    # files <- foreach(f=cases$file_id) %dopar% {
+    #   library(GenomicDataCommons)
+    #   return( gdcdata(as.character(f), progress=F) )
+    # }
+    # files <- unlist(files)
   }
-  files <- paste(cache_dir, cases$file_name, sep="/")
+  #files <- list.files(cache_dir, pattern=paste(as.character(cases$file_name), collapse="|"), recursive = T, full.names = T)
+  files <- unlist(lapply(1:dim(cases)[1], function(i){
+    paste(cache_dir, as.character(cases$file_id[i]), as.character(cases$file_name[i]), sep="/")
+  }))
   
   # Unzip - don't delete original
   for(file in files){
@@ -89,7 +101,7 @@ downloadTcgaData <- function(
     # Parse the files and add a pheno data frame
     x <- parseCnaFiles(files, is.TCGA = T)
     pheno <- data.frame(
-      name=cases$file_name,
+      name=as.character(cases$file_name),
       progression=as.numeric(list("Solid Tissue Normal"=0,"Primary Tumor"=1)[cases$sample_type]),
       source="TCGA"
     )

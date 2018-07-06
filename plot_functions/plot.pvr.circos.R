@@ -136,8 +136,8 @@ plot.pvr.circos <- function(filename, circos.dir=paste(getwd(), "results/circos.
   )
   # Add colours manually
   cna.prog.track$col <- "color=vvlgrey"
-  cna.prog.track$col[which(cna.prog.track$value < cnacut.del)] <- "color=lblue"
-  cna.prog.track$col[which(cna.prog.track$value < cnacut.loss)] <- "color=vdblue"
+  cna.prog.track$col[which(cna.prog.track$value < cnacut.loss)] <- "color=lblue"
+  cna.prog.track$col[which(cna.prog.track$value < cnacut.del)] <- "color=vdblue"
   cna.prog.track$col[which(cna.prog.track$value > cnacut.gain)] <- "color=lred"
   cna.prog.track$col[which(cna.prog.track$value > cnacut.amp)] <- "color=vdred"
   write.table(cna.prog.track, sep="\t", quote=F, col.names=F, row.names = F, file=cnas.prog.circos)
@@ -149,8 +149,8 @@ plot.pvr.circos <- function(filename, circos.dir=paste(getwd(), "results/circos.
     value=apply(cnas.segmented.data[sel,which(wgs.pheno$progression == 0)], 1, mean)
   )
   cna.reg.track$col <- "color=vvlgrey"
-  cna.reg.track$col[which(cna.reg.track$value < cnacut.del)] <- "color=lblue"
-  cna.reg.track$col[which(cna.reg.track$value < cnacut.loss)] <- "color=vdblue"
+  cna.reg.track$col[which(cna.reg.track$value < cnacut.loss)] <- "color=lblue"
+  cna.reg.track$col[which(cna.reg.track$value < cnacut.del)] <- "color=vdblue"
   cna.reg.track$col[which(cna.reg.track$value > cnacut.gain)] <- "color=lred"
   cna.reg.track$col[which(cna.reg.track$value > cnacut.amp)] <- "color=vdred"
   write.table(cna.reg.track, sep="\t", quote=F, col.names=F, row.names = F, file=cnas.reg.circos)
@@ -164,8 +164,8 @@ plot.pvr.circos <- function(filename, circos.dir=paste(getwd(), "results/circos.
   tcga.cnas.track <- tcga.cnas.track[which(!(tcga.cnas.track$chr %in% c('hsX', "hsY"))),]
   # Add colours manually
   tcga.cnas.track$col <- "color=vvlgrey"
-  tcga.cnas.track$col[which(tcga.cnas.track$value < cnacut.del)] <- "color=lblue"
-  tcga.cnas.track$col[which(tcga.cnas.track$value < cnacut.loss)] <- "color=vdblue"
+  tcga.cnas.track$col[which(tcga.cnas.track$value < cnacut.loss)] <- "color=lblue"
+  tcga.cnas.track$col[which(tcga.cnas.track$value < cnacut.del)] <- "color=vdblue"
   tcga.cnas.track$col[which(tcga.cnas.track$value > cnacut.gain)] <- "color=lred"
   tcga.cnas.track$col[which(tcga.cnas.track$value > cnacut.amp)] <- "color=vdred"
   write.table(tcga.cnas.track, sep="\t", quote=F, col.names=F, row.names = F, file=tcga.cnas.prog.circos)
@@ -359,7 +359,7 @@ plot.pvr.circos <- function(filename, circos.dir=paste(getwd(), "results/circos.
 # TCGA Reg CNAs
                 #<plot>
                 #type = heatmap
-                #file = ",tcga.cnas.reg.circos,"
+                #file = \",tcga.cnas.reg.circos,\"
                 #r1   = 0.4r
                 #r0   = 0.375r
                 #</plot>
@@ -394,10 +394,12 @@ plot.pvr.circos <- function(filename, circos.dir=paste(getwd(), "results/circos.
   setwd(circos.dir)
   system(circos.cmd) # conf file should be in this directory already
   # We need different behaviour for relative and absolute file paths
-  if(substr(filename, 1, 1) == "/"){
-    file.copy("circos.png", filename, overwrite = T)
+  if(substr(filename, 1, 1) == "/" | substr(filename, 1, 1) == "~"){
+    destfile <- filename
   }else{
-    file.copy("circos.png", paste(wd, filename, sep="/"), overwrite = T)
+    destfile <- paste(wd, filename, sep="/")
   }
+  file.copy("circos.png", destfile, overwrite = T)
+  file.copy("circos.svg", paste0(destfile, ".svg"), overwrite=T)
   setwd(wd)
 }

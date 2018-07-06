@@ -77,8 +77,8 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   write.table(cis.freq, sep="\t", quote=F, col.names=F, row.names = F, file=circos.cis)
   
   # Drivers are simply 1 for drivers, 0 otherwise
-  driver.genes <- read.table('resources/driver_genes.tsv', stringsAsFactors = F, sep="\t", header=T)
-  driver.genes <- unique(driver.genes$Gene)
+  driver.genes.info <- read.xls('resources/driver.genes.xls', stringsAsFactors=F)
+  driver.genes <- driver.genes.info$Gene.Symbol
   drivers.plot$value[which(drivers.plot$gene %in% driver.genes)] <- 1
   drivers.plot$gene <- NULL
   write.table(drivers.plot, sep="\t", quote=F, col.names=F, row.names = F, file=circos.drivers)
@@ -356,10 +356,12 @@ plot.genomic.circos <- function(filename, circos.dir=paste(getwd(), "results/cir
   setwd(circos.dir)
   system(circos.cmd) # conf file should be in this directory already
   # We need different behaviour for relative and absolute file paths
-  if(substr(filename, 1, 1) == "/"){
-    file.copy("circos.png", filename, overwrite = T)
+  if(substr(filename, 1, 1) == "/" | substr(filename, 1, 1) == "~"){
+    destfile <- filename
   }else{
-    file.copy("circos.png", paste(wd, filename, sep="/"), overwrite = T)
+    destfile <- paste(wd, filename, sep="/")
   }
+  file.copy("circos.png", destfile, overwrite = T)
+  file.copy("circos.svg", paste0(destfile, ".svg"), overwrite=T)
   setwd(wd)
 }

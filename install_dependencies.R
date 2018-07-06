@@ -4,6 +4,15 @@ message("Checking for installed dependencies:")
 
 pkgs <- c("gdata",
           "devtools",
+          "GenomeInfoDbData",
+          "ChAMPdata",
+          "Illumina450ProbeVariants.db",
+          "IlluminaHumanMethylationEPICmanifest",
+          "IlluminaHumanMethylation450kmanifest", 
+          "IlluminaHumanMethylationEPICanno.ilm10b2.hg19",
+          "IlluminaHumanMethylation450kanno.ilmn12.hg19",
+          "DMRcate",
+          "geneLenDataBase",
           "ChAMP",
           "ggplot2",
           "ggsignif",
@@ -41,7 +50,8 @@ pkgs <- c("gdata",
           "sciClone",
           "foreach",
           "doParallel", 
-          "GenVisR")
+          "GenVisR",
+          "MutationalPatterns")
 
 # By default the latest version of these packages will be installed. 
 # Versions used to conduct the analysis can be found in the resources folder.

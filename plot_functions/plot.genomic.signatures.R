@@ -11,7 +11,7 @@ plot.genomic.signatures <- function(filename){
   
   # Repeat plots split into prog/reg
   #dev.new(width=5, height=5*length(which(wgs.pheno$progression == 0)) / dim(wgs.pheno)[1])
-  png(paste0(filename, "_reg_rel.png"), width=960, height=960*length(which(wgs.pheno$progression == 0)) / dim(wgs.pheno)[1])
+  pdf(paste0(filename, "_reg_rel.pdf"), width=9.60, height=9.60*length(which(wgs.pheno$progression == 0)) / dim(wgs.pheno)[1])
   plot_contribution(fit_res$contribution[select,o],
                     cancer_signatures[,select],
                     coord_flip = TRUE,
@@ -20,7 +20,7 @@ plot.genomic.signatures <- function(filename){
                     index = which(wgs.pheno[o,]$progression == 0)
   )
   dev.off()
-  png(paste0(filename, "_reg_abs.png"), width=960, height=960*length(which(wgs.pheno$progression == 0)) / dim(wgs.pheno)[1])
+  pdf(paste0(filename, "_reg_abs.pdf"), width=9.60, height=9.60*length(which(wgs.pheno$progression == 0)) / dim(wgs.pheno)[1])
   plot_contribution(fit_res$contribution[select,o],
                     cancer_signatures[,select],
                     coord_flip = TRUE,
@@ -29,7 +29,7 @@ plot.genomic.signatures <- function(filename){
                     index = which(wgs.pheno[o,]$progression == 0)
   )
   dev.off()
-  png(paste0(filename, "_prog_rel.png"), width=960, height=960*length(which(wgs.pheno$progression == 1)) / dim(wgs.pheno)[1])
+  pdf(paste0(filename, "_prog_rel.pdf"), width=9.60, height=9.60*length(which(wgs.pheno$progression == 1)) / dim(wgs.pheno)[1])
   plot_contribution(fit_res$contribution[select,o],
                     cancer_signatures[,select],
                     coord_flip = TRUE,
@@ -38,7 +38,7 @@ plot.genomic.signatures <- function(filename){
                     index = which(wgs.pheno[o,]$progression == 1)
   )
   dev.off()
-  png(paste0(filename, "_prog_abs.png"), width=960, height=960*length(which(wgs.pheno$progression == 1)) / dim(wgs.pheno)[1])
+  pdf(paste0(filename, "_prog_abs.pdf"), width=9.60, height=9.60*length(which(wgs.pheno$progression == 1)) / dim(wgs.pheno)[1])
   plot_contribution(fit_res$contribution[select,o],
                     cancer_signatures[,select],
                     coord_flip = TRUE,
@@ -132,18 +132,19 @@ plot.genomic.signatures <- function(filename){
   # Plot prog vs reg for individual signatures
   # fit_res$contribution has approximate number of mutations per signature. colSums gives roughly the correct mutation count.
   plotdata <- wgs.pheno
+  plotdata <- plotdata[-which(plotdata$query.reg == 1),]
   for(sig in sigs.to.analyse){
     # Compare absolute mutations in this signature
-    plotdata[,sig] <- fit_res$contribution[sig,wgs.pheno$name]
+    plotdata[,sig] <- fit_res$contribution[sig,plotdata$name]
     
-    compare.fn(dependent_variable = sig, compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"),
+    compare.fn(dependent_variable = sig, compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
                random_effects = "Patient", modelinfo=plotdata, title=paste0(sig, " (abs)"))
     
     # Compare relative proportion of mutations in this signature
     sig.rel <- paste0(sig, ".rel")
-    plotdata[,sig.rel] <- 100*fit_res$contribution[sig, wgs.pheno$name] / colSums(fit_res$contribution[,wgs.pheno$name])
+    plotdata[,sig.rel] <- 100*fit_res$contribution[sig, plotdata$name] / colSums(fit_res$contribution[,plotdata$name])
     
-    compare.fn(dependent_variable = sig.rel, compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years"),
+    compare.fn(dependent_variable = sig.rel, compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
                random_effects = "Patient", modelinfo=plotdata, title=paste0(sig, " (rel)"))
   }
   
@@ -152,7 +153,7 @@ plot.genomic.signatures <- function(filename){
   
   
   # TCGA comparison:
-  png(paste0(filename, "_with_tcga.png"), width=960, height=960*3 / dim(wgs.pheno)[1])
+  pdf(paste0(filename, "_with_tcga.pdf"), width=960, height=960*3 / dim(wgs.pheno)[1])
   
   # Plot mean signature contributions for CIS and TCGA
   cont.combined <- data.frame(row.names = row.names(fit_res_exonic$contribution))

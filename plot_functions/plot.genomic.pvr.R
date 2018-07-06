@@ -61,32 +61,37 @@ plot.genomic.pvr <- function(filename){
   plotdata <- plotdata[-which(plotdata$query.reg == 1),]
   
   pdf(filename)
+  
+  compare.fn(dependent_variable = "subs.count", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
+             random_effects = "Patient", modelinfo=plotdata, title="Substitutions")
+  compare.fn(dependent_variable = "indels.count", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
+             random_effects = "Patient", modelinfo=plotdata, title="Small Insertions and Deletions")
+  compare.fn(dependent_variable = "rearr.count", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
+             random_effects = "Patient", modelinfo=plotdata, title="Rearrangements")
+  compare.fn(dependent_variable = "cna.counts", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
+             random_effects = "Patient", modelinfo=plotdata, title="Copy number segments")
+  # Clonality data - generated in full_analysis.R
+  compare.fn(dependent_variable = "clonal.muts", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
+             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter", title="Clonal Substitutions")
+  compare.fn(dependent_variable = "prop.clonal", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
+             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter", title="Proportion of clonal substitutions")
+  compare.fn(dependent_variable = "nclusters", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
+             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter", title="Number of clones")
+  compare.fn(dependent_variable = "driver.count", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
+             random_effects = "Patient", modelinfo=plotdata, title="Putative driver mutations")
+  compare.fn(dependent_variable = "telomeres", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
+             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter", title="Telomere length")
+  
+  
+  
+  # Other comparisons not used in final paper
   compare.fn(dependent_variable = "burden", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
              random_effects = "Patient", modelinfo=plotdata)
   compare.fn(dependent_variable = "burden.coding", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
              random_effects = "Patient", modelinfo=plotdata)
-  compare.fn(dependent_variable = "subs.count", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
-             random_effects = "Patient", modelinfo=plotdata)
-  compare.fn(dependent_variable = "indels.count", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
-             random_effects = "Patient", modelinfo=plotdata)
-  compare.fn(dependent_variable = "rearr.count", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
-             random_effects = "Patient", modelinfo=plotdata)
-  compare.fn(dependent_variable = "driver.count", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"),
-             random_effects = "Patient", modelinfo=plotdata)
   compare.fn(dependent_variable = "cna.gene.counts", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
              random_effects = "Patient", modelinfo=plotdata)
-  compare.fn(dependent_variable = "cna.counts", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
-             random_effects = "Patient", modelinfo=plotdata)
   compare.fn(dependent_variable = "wgii", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
-             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
-  compare.fn(dependent_variable = "telomeres", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
-             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
-  # Clonality data - generated in full_analysis.R
-  compare.fn(dependent_variable = "nclusters", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
-             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
-  compare.fn(dependent_variable = "clonal.muts", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
-             random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
-  compare.fn(dependent_variable = "prop.clonal", compared_variable = "progression", fixed_effects = c("Age.at.specimen.profiled", "Pack.years", "purity"), 
              random_effects = "Patient", modelinfo=plotdata, strip.method="jitter")
  dev.off() 
   

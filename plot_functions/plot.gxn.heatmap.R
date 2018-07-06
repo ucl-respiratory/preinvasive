@@ -18,8 +18,8 @@ plot.gxn.heatmap <- function(filename){
     status=c(Progressive="red", Regressive="green"),
     pack.years=smoking_group_names,
     age.group=age_group_names,
-    gender=c("F"="pink", "M"="blue"),
-    COPD=c("N"="green", "Y"="red")
+    gender=c("F"="pink", "M"="cyan"),
+    COPD=c("N"="darkgreen", "Y"="orange")
   )
   rownames(g.annot) <- colnames(sig_genes)
   

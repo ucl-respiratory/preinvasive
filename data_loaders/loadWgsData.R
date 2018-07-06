@@ -28,6 +28,7 @@ if(file.exists(cache_file)){
   message("Parsing sequencing data. This may take some time.")
   source('data_loaders/downloadTcgaData.R')
   source('utility_functions/parseCnaFiles.R')
+  source('utility_functions/parallel.setup.R')
   
   # Location of WGS data files
   # These files are output from Caveman, ASCAT, Pindel and Brass. They are not raw BAM files.
@@ -47,7 +48,6 @@ if(file.exists(cache_file)){
   # Add purity and ploidy data - output from ASCAT analysis
   ascat.output <- read.csv('resources/Ascat_ploidy_purity.csv', stringsAsFactors = F)
   wgs.pheno$purity <- ascat.output$ABBR_CELL_FRAC[match(wgs.pheno$name, ascat.output$SAMPLE)]
-  #wgs.pheno$ploidy <- ascat.output$TUM_PLOIDY[match(wgs.pheno$name, ascat.output$SAMPLE)]
 
   # Additionally mark some samples as 'query regressive' - these samples regressed but subsequently showed evidence of new disease on longer follow up 
   # These were identified from our analysis, hence not included in the input pheno file
@@ -63,7 +63,11 @@ if(file.exists(cache_file)){
   # This creates a large list of mutations with all patients in one file
   # All mutations passing filters are included
   ####################################################################################
-  for(i in 1:dim(wgs.pheno)[1]){
+  message("Parsing subs and indels")
+  #for(i in 1:dim(wgs.pheno)[1]){
+  muts.all <- foreach(i=1:dim(wgs.pheno)[1], .combine=rbind) %dopar% {
+    library(stringr)
+    library(VariantAnnotation)
     pt <- wgs.pheno$name[i]
     print(paste("Processing patient", pt))
     
@@ -173,35 +177,6 @@ if(file.exists(cache_file)){
       protein.change=gsub("p.", "", str_extract(vd, "p.[A-Z][0-9]+[A-Z]"), fixed = T)
     )
     
-    # Read rearrangements
-    # has.rearr <- length(brass.file) > 0
-    # if(has.rearr){
-    #   vcf <- readVcf(brass.file)
-    #   rr <- rowRanges(vcf)
-    #   rearr.pt <- data.frame(
-    #     patient=pt,
-    #     gene=readInfo(brass.file, x='GENE'),
-    #     class="Rearrangement",
-    #     type=readInfo(brass.file, x='SVTYPE'),
-    #     ref=as.character(ref(vcf)),
-    #     alt=as.character(alt(vcf)),
-    #     chr=as.character(seqnames(rr)),
-    #     start=start(ranges(rr)),
-    #     end=end(ranges(rr)),
-    #     filters=fixed(vcf)$FILTER,
-    #     asmd=1000, # Rearrangements should automatically pass these filters
-    #     clpm=0,
-    #     vaf=NA, # Clonality based on subs only
-    #     ref.reads=NA,
-    #     alt.reads=NA,
-    #     tumour.reads=NA,
-    #     depth=NA,
-    #     exonic=F, # We don't compare rearrangements to TCGA so can skip this
-    #     protein.change=NA
-    #   )
-    # }
-    
-    
     # Merge subs and indels
     muts.pt <- rbind(subs.pt, indels.pt)
     # Order by location
@@ -209,21 +184,20 @@ if(file.exists(cache_file)){
     muts.pt <- muts.pt[o,]
     
     # Merge
-    if(i == 1){
-      subs.all <- subs.pt
-      indels.all <- indels.pt
-      if(has.rearr){ rearr.all <- rearr.pt }
-      muts.all <- muts.pt
-    }else{
-      subs.all <- rbind(subs.all, subs.pt)
-      indels.all <- rbind(indels.all, indels.pt)
-      if(has.rearr){ rearr.all <- rbind(rearr.all, rearr.pt) }
-      muts.all <- rbind(muts.all, muts.pt)
-    }
+    # if(i == 1){
+    #   subs.all <- subs.pt
+    #   indels.all <- indels.pt
+    #   muts.all <- muts.pt
+    # }else{
+    #   subs.all <- rbind(subs.all, subs.pt)
+    #   indels.all <- rbind(indels.all, indels.pt)
+    #   muts.all <- rbind(muts.all, muts.pt)
+    # }
+    return(muts.pt)
   }
   
   # Save intermediary step
-  save(muts.all, file="data/wgsTemp.RData")
+  #save(muts.all, file="data/wgsTemp.RData")
   
   # Define our filters (but don't perform filtering yet):
   muts.all$filters.passed <- muts.all$filters == "PASS" & muts.all$asmd >= 140& muts.all$clpm == 0
@@ -235,6 +209,7 @@ if(file.exists(cache_file)){
   # from the same patient but failed filters, add it to the mutation list
   # Here we refer to pileup files directly so we do not miss mutations not called by CaveMan
   ####################################################################################
+  message("Checking multiple samples against pileup files")
   pileup.dir <- paste0(wgs.data.dir, "pileups/")
   
   # Define a unique mutation string to compare between patients
@@ -296,40 +271,14 @@ if(file.exists(cache_file)){
         muts.all <- rbind(muts.all, df)
       }
     }
-
-    # sel <- which(muts.all$mid %in% mt.ids & muts.all$patient %in% samples)
-    # print(paste("Correcting", length(which(!muts.all$filters.passed[sel])), "mismatches, from total", dim(samples.data)[1], "mutations"))
-    # muts.all$filters.passed[sel] <- TRUE
-    
   }
-  
-  
-  
-  # Define a unique mutation string to compare between patients
-  # muts.all$mid <- paste(
-  #   muts.all$chr, muts.all$start, muts.all$end, muts.all$ref, muts.all$alt, sep="-"
-  # )
-  # # Check each patient with multiple samples
-  # pts <- unique(wgs.pheno$Patient[which(duplicated(wgs.pheno$Patient))])
-  # for(pt in pts){
-  #   samples <- wgs.pheno$name[which(wgs.pheno$Patient == pt)]
-  #   print(paste("Checking patient", pt, "(", length(samples), "samples )"))
-  #   # Find actual mutations. 
-  #   # All of these mutations have been confirmed in at least one sample for this patient.
-  #   # Therefore assume they are also present in other samples, if they have failed filters
-  #   samples.data <- muts.all[which(muts.all$patient %in% samples),]
-  #   mt.ids <- samples.data$mid[which(samples.data$filters.passed)]
-  #   sel <- which(muts.all$mid %in% mt.ids & muts.all$patient %in% samples)
-  #   print(paste("Correcting", length(which(!muts.all$filters.passed[sel])), "mismatches, from total", dim(samples.data)[1], "mutations"))
-  #   muts.all$filters.passed[sel] <- TRUE
-  #   
-  # }
   
   ####################################################################################
   # Filter subs and indels
   #
   # For comparison with TCGA data, we need to access only coding subs/indels
   ####################################################################################
+  message("Filtering subs and indels")
   muts.unfiltered <- muts.all
   muts.all <- muts.unfiltered[which(muts.all$filters.passed),]
   
@@ -365,9 +314,11 @@ if(file.exists(cache_file)){
   ####################################################################################
   # Add Rearrangements
   #
-  # These are pre-processed as described in the main text.
-  # 
+  # These are pre-processed as described in the text.
+  # Unfortunately we cannot share these downstream processed files publically due to EGA access agreeements.
+  # Please contact the authors if you require further information.
   ####################################################################################
+  message("Parsing rearrangements")
   rearrangements.all <- read.table('resources/private/no_germ_reassembled_3_reads.txt', header=T, stringsAsFactors = F, sep="\t")
   
   rearrs <- data.frame(
@@ -412,87 +363,96 @@ if(file.exists(cache_file)){
   # Reduce to minimum consistent regions across all samples
   # These data are used for genome-wide plotting of copy number, as in figure 2E
   ####################################################################################
+  message("Parsing copy number data")
   cna.s.files <- list.files(cna.dir, full.names = T)
   
-  for(i in 1:length(cna.s.files)){
-    pt_index <- regexpr("PD[0-9]+", cna.s.files[i])
-    pt <- substr(cna.s.files[i], pt_index, pt_index+7)
-    print(paste("Reading CNAS for patient", pt))
-    c <- read.table(cna.s.files[i], sep=",", row.names = 1, stringsAsFactors = F)
-    colnames(c) <- c('chr', 'start', 'end', 'pl', 'pl.min', 'cn', 'cn.min')
-    
-    if(i == 1){
-      scnas <- c[,c('chr', 'start', 'end', 'cn')]
-      colnames(scnas)[4] <- pt
-      
-      allranges <- GRanges(
-        seqnames = Rle(c$chr),
-        ranges = IRanges(start=c$start, end=c$end)
-      )
-    }else{
-      range <- GRanges(
-        seqnames = Rle(c$chr),
-        ranges = IRanges(start=c$start, end=c$end)
-      )
-      allranges <- c(allranges, range)
-    }
+  cnas.table <- foreach(f=cna.s.files, .combine=rbind) %dopar% {
+    pt_index <- regexpr("PD[0-9]+", f)
+    pt <- substr(f, pt_index, pt_index+7)
+    c <- read.table(f, sep=",", row.names = 1, stringsAsFactors = F)
+    c <- data.frame(SampleID=pt, Chr=c$V2, Start=c$V3, End=c$V4, cn=c$V7, stringsAsFactors = F)
+    return(c)
   }
   
-  # Now we have all ranges, populate them with sample data
-  allranges <- disjoin(allranges)
+  source('utility_functions/convertCNAtoMCR.R')
+  cnas.segmented <- convertCNAtoMCR(cnas.table)
+  # 
+  # for(i in 1:length(cna.s.files)){
+  #   pt_index <- regexpr("PD[0-9]+", cna.s.files[i])
+  #   pt <- substr(cna.s.files[i], pt_index, pt_index+7)
+  #   print(paste("Reading CNAS for patient", pt))
+  #   c <- read.table(cna.s.files[i], sep=",", row.names = 1, stringsAsFactors = F)
+  #   colnames(c) <- c('chr', 'start', 'end', 'pl', 'pl.min', 'cn', 'cn.min')
+  #   
+  #   if(i == 1){
+  #     scnas <- c[,c('chr', 'start', 'end', 'cn')]
+  #     colnames(scnas)[4] <- pt
+  #     
+  #     allranges <- GRanges(
+  #       seqnames = Rle(c$chr),
+  #       ranges = IRanges(start=c$start, end=c$end)
+  #     )
+  #   }else{
+  #     range <- GRanges(
+  #       seqnames = Rle(c$chr),
+  #       ranges = IRanges(start=c$start, end=c$end)
+  #     )
+  #     allranges <- c(allranges, range)
+  #   }
+  # }
+  # 
+  # # Now we have all ranges, populate them with sample data
+  # allranges <- disjoin(allranges)
+  # 
+  # df <- data.frame(chr=seqnames(allranges), start=start(allranges), end=end(allranges))
+  # for(i in 1:length(cna.s.files)){
+  #   pt_index <- regexpr("PD[0-9]+", cna.s.files[i])
+  #   pt <- substr(cna.s.files[i], pt_index, pt_index+7)
+  #   df[,pt] <- NA
+  # }
+  # 
+  # 
+  # for(j in 1:length(cna.s.files)){
+  #   pt_index <- regexpr("PD[0-9]+", cna.s.files[j])
+  #   pt <- substr(cna.s.files[j], pt_index, pt_index+7)
+  #   c <- read.table(cna.s.files[j], sep=",", row.names = 1, stringsAsFactors = F)
+  #   colnames(c) <- c('chr', 'start', 'end', 'pl', 'pl.min', 'cn', 'cn.min')
+  #   
+  #   for(i in 1:dim(df)[1]){
+  #     
+  #     sel <- which(
+  #       c$chr == df$chr[i] & 
+  #         c$start <= df$start[i] &
+  #         c$end >= df$end[i]
+  #     )
+  #     if(length(sel) > 1){
+  #       message(paste("WARNING: Multiple matching rows",pt, df$chr[i], df$start[i], df$end[i]))
+  #       next
+  #     }
+  #     if(length(sel) == 0){
+  #       message(paste("WARNING: No rows matched",pt, df$chr[i], df$start[i], df$end[i]))
+  #       next
+  #     }
+  #     df[i, pt] <- c[sel, 'cn']
+  #   }
+  # }
+  # 
+  # 
+  # # There are some gaps - assume these have no CN change so fill in with 2s:
+  # sel <- which(is.na(df), arr.ind = T)
+  # df[sel] <- 2
+  # 
+  # cnas.segmented <- df
   
-  df <- data.frame(chr=seqnames(allranges), start=start(allranges), end=end(allranges))
-  for(i in 1:length(cna.s.files)){
-    pt_index <- regexpr("PD[0-9]+", cna.s.files[i])
-    pt <- substr(cna.s.files[i], pt_index, pt_index+7)
-    df[,pt] <- NA
-  }
-  
-  
-  for(j in 1:length(cna.s.files)){
-    pt_index <- regexpr("PD[0-9]+", cna.s.files[j])
-    pt <- substr(cna.s.files[j], pt_index, pt_index+7)
-    c <- read.table(cna.s.files[j], sep=",", row.names = 1, stringsAsFactors = F)
-    colnames(c) <- c('chr', 'start', 'end', 'pl', 'pl.min', 'cn', 'cn.min')
-    
-    for(i in 1:dim(df)[1]){
-      
-      sel <- which(
-        c$chr == df$chr[i] & 
-          c$start <= df$start[i] &
-          c$end >= df$end[i]
-      )
-      if(length(sel) > 1){
-        message(paste("WARNING: Multiple matching rows",pt, df$chr[i], df$start[i], df$end[i]))
-        next
-      }
-      if(length(sel) == 0){
-        message(paste("WARNING: No rows matched",pt, df$chr[i], df$start[i], df$end[i]))
-        next
-      }
-      df[i, pt] <- c[sel, 'cn']
-    }
-  }
-  
-  
-  # There are some gaps - assume these have no CN change so fill in with 2s:
-  sel <- which(is.na(df), arr.ind = T)
-  df[sel] <- 2
-  
-  cnas.segmented <- df
-  
-  # Include the mean CNA segment values across all samples
-  cnas.segmented.mean <- cnas.segmented[,1:3]
-  cnas.segmented.mean$cn <- apply(cnas.segmented[,4:dim(cnas.segmented)[2]], 1, mean)
   
   # Sometimes we can collapse this into a smaller data frame using Genomic Ranges if adjacent regions have the same mean:
-  range <- GRanges(seqnames = Rle(cnas.segmented.mean$chr), 
-                   ranges=IRanges(start=cnas.segmented.mean$start, end=cnas.segmented.mean$end),
-                   cn=cnas.segmented.mean$cn)
-  x <- sort(unlist(split(range, elementMetadata(range)$cn)))
-  cnas.segmented.mean <- data.frame(
-    chr=seqnames(x), start=start(x), end=end(x), cn=elementMetadata(x)$cn
-  )
+  # range <- GRanges(seqnames = Rle(cnas.segmented.mean$chr), 
+  #                  ranges=IRanges(start=cnas.segmented.mean$start, end=cnas.segmented.mean$end),
+  #                  cn=cnas.segmented.mean$cn)
+  # x <- sort(unlist(split(range, elementMetadata(range)$cn)))
+  # cnas.segmented.mean <- data.frame(
+  #   chr=seqnames(x), start=start(x), end=end(x), cn=elementMetadata(x)$cn
+  # )
   
   ####################################################################################
   # Estimate ploidy for each sample and add to the pheno data frame
@@ -514,7 +474,9 @@ if(file.exists(cache_file)){
   names(ploidys) <- names
   wgs.pheno$ploidy <- ploidys[wgs.pheno$name]
   
-  
+  # Include the mean CNA segment values across all samples - ploidy corrected
+  cnas.segmented.mean <- cnas.segmented[,1:3]
+  cnas.segmented.mean$cn <- apply(cnas.segmented[,4:dim(cnas.segmented)[2]] / ploidys[colnames(cnas.segmented)[4:dim(cnas.segmented)[2]]], 1, mean)
   
   ####################################################################################
   # Load CNAs by gene and by band
@@ -557,14 +519,12 @@ if(file.exists(cache_file)){
     ptdata$sample <- pt
     cna.summaries[[pt]] <- ptdata
   }
-  library(GenomicDataCommons)
-  cna.summary.list <- rbindlist2(cna.summaries)
+  cna.summary.list <- data.table::rbindlist(cna.summaries)
   
   # FIND ALL AMPLIFIED AND DELETED GENES IN MULTIPLE SAMPLES 
   library(GenomicRanges)
   library(Homo.sapiens)
   library(BSgenome.Hsapiens.UCSC.hg19)
-  library(AnnotationHub)
   library(biovizBase)
   
   # Get genes
@@ -760,7 +720,7 @@ if(file.exists(cache_file)){
   # Download that here
   # The file used is generated from the TCGA portal using our list of 200 driver genes as input
   ####################################################################################
-
+  message("Loading TCGA comparative data")
   
   # tcga.snvs <- downloadTcgaData(
   #   d_type="Masked Somatic Mutation", 
@@ -828,8 +788,8 @@ if(file.exists(cache_file)){
   # Relative GISTIC data used for comparison with methylation-derived CNA probes in prediction
   x <- downloadTcgaData(
     d_type="Copy Number Segment",
-    w_type = "DNAcopy",
-    cache_dir="./data/wgs/tcga_cnv"
+    w_type = "DNAcopy"#,
+    #cache_dir="./data/wgs/tcga_cnv"
   )
   # tcga.cnas.segmented <- x[[1]]
   tcga.cnas.bands     <- x[[2]]
@@ -843,7 +803,8 @@ if(file.exists(cache_file)){
   tcga.cna.samples <- unique(tcga.cnas.segmented.data$SampleID)
   
   # Convert to minimum consistent regions format
-  tcga.cnas.segmented <- convertCNAtoMCR(tcga.cnas.segmented.data)
+  tcga.cnas.segmented.uncorrected <- convertCNAtoMCR(tcga.cnas.segmented.data)
+  tcga.cnas.segmented <- tcga.cnas.segmented.uncorrected
   
   # Correct for ploidy
   tcga.ploidys <- lapply(tcga.cna.samples, function(x){
@@ -863,8 +824,9 @@ if(file.exists(cache_file)){
   ####################################################################################
   # Save output in RData format
   ####################################################################################
+  message(paste("All data loaded - saving output to", cache_file))
   save(
-    subs.all, indels.all, rearrangements.all,
+    #subs.all, indels.all, rearrangements.all,
     cna.summary.list,
     cnas.segmented, cnas.segmented.mean,
     cnas.genes.summary, cnas.amps, cnas.dels, 

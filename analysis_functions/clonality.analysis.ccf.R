@@ -18,12 +18,14 @@ colnames(annot) <- c("chr", "pos", "gene")
 sel.rm <- which(duplicated(annot$pos) | is.na(annot$gene))
 if(length(sel.rm) > 0){ annot <- annot[-sel.rm,] }
 
-muts.cache.file <- paste0(results_dir, "clonality/muts.with.ccf.RData")
-clones.cache.file <- paste0(results_dir, "clonality/clusterdata.RData")
+muts.cache.file <- paste0(results_dir_root, "clonality/muts.with.ccf.RData")
+clones.cache.file <- paste0(results_dir_root, "clonality/clusterdata.RData")
 
 if(file.exists(muts.cache.file)){
+  message("Using cached clonality data")
   load(muts.cache.file)
 }else{
+  message("Generating clonality CCF data")
   muts.with.ccf <- foreach(i = 1:dim(wgs.pheno)[1]) %dopar% {
     library(GenomicDataCommons)
     source('utility_functions/absolute.cancer.cell.fraction.R')
@@ -52,7 +54,7 @@ if(file.exists(muts.cache.file)){
         local.copy.number=sample.muts$CNt[x]
       )
     })
-    ccf <- rbindlist2(ccf)
+    ccf <- data.table::rbindlist(ccf)
     sample.muts <- cbind(sample.muts, ccf)
     return(sample.muts)
   }
@@ -62,8 +64,10 @@ if(file.exists(muts.cache.file)){
 
 
 if(file.exists(clones.cache.file)){
+  message("Using cached clonality data")
   load(clones.cache.file)
 }else{
+  message("Generating clonality data using sciClone (may take some time)")
   # Create cluster data for each sample from CCFs
   clusterdata <- foreach(i = 1:dim(wgs.pheno)[1]) %dopar% {
     library(sciClone)

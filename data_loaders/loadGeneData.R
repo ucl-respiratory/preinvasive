@@ -81,7 +81,7 @@ if(file.exists(cache_file)){
   setwd(wd)
   
   # Now unzip them
-  cmd <- paste("gunzip ", cache_dir, "/validation/*.gz", sep="")
+  cmd <- paste("gunzip -f ", cache_dir, "/validation/*.gz", sep="")
   system(cmd)
   
   # Load the CEL files 
