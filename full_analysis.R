@@ -69,11 +69,6 @@ load('resources/cin_genes.RData')
 overlap.pheno <- read.xls('resources/overlap.samples.xlsx')
 
 # Read in a list of genes previously associated with lung cancer as defined in the text
-#driver.genes <- read.csv('resources/driver_mutations.csv')
-# Filter for pan-cancer or lusc-specific
-#driver.genes.info <- read.table('resources/driver_genes.tsv', stringsAsFactors = F, sep="\t", header=T)
-#driver.genes <- unique(driver.genes.info$Gene)
-#load("resources/cgc.genes.RData")
 driver.genes.info <- read.xls('resources/driver.genes.xls', stringsAsFactors=F)
 driver.genes <- driver.genes.info$Gene.Symbol
 
@@ -310,8 +305,6 @@ folds <- list(c(14, 17, 11, 52, 59, 36),c(13, 9, 32, 37, 44, 42),c(6, 30, 3, 48,
 meth.pamr.mycv <- pamr.cv(meth.pamr.trainfit, meth.pamr.traindata, folds = folds, nfold=length(folds))
 
 # Manually choose threshold from experimentation - use pamr.plotcv(meth.pamr.mycv) to help choose a threshold:
-#threshold <- max(meth.pamr.mycv$threshold[which(meth.pamr.mycv$error == min(meth.pamr.mycv$error))])
-#threshold=8
 meth.threshold.id <- 23
 meth.threshold <- meth.pamr.mycv$threshold[meth.threshold.id]
 
@@ -492,7 +485,6 @@ type_occurrences <- mut_type_occurrences(vcfs, ref_genome)
 
 # Map to the 96 count system used by Alexandrov et al
 mut_mat <- mut_matrix(vcf_list = vcfs, ref_genome = ref_genome)
-#plot_96_profile(mut_mat, condensed = T)
 
 # Download known signature data from COSMIC
 sp_url <- "http://cancer.sanger.ac.uk/cancergenome/assets/signatures_probabilities.txt"
@@ -502,12 +494,9 @@ cancer_signatures = cancer_signatures[as.vector(new_order),]
 row.names(cancer_signatures) = cancer_signatures$Somatic.Mutation.Type
 cancer_signatures = as.matrix(cancer_signatures[,4:33])
 
-#plot_96_profile(cancer_signatures[,1:21], condensed = TRUE, ymax = 0.3)
-
 # Cluster similar signatures together
 hclust_cosmic = cluster_signatures(cancer_signatures, method = "average")
 cosmic_order = colnames(cancer_signatures)[hclust_cosmic$order]
-#plot(hclust_cosmic)
 
 # Compare with our data
 cos_sim_samples_signatures = cos_sim_matrix(mut_mat, cancer_signatures)
@@ -739,17 +728,6 @@ if(length(rearr.filt) > 0){
 # As a further check, filter out any mutation with a VEP score less than moderate/high
 vep.filter <- !is.na(driver.muts.all$VEP.impact) & !grepl("HIGH|MODERATE", driver.muts.all$VEP.impact)
 driver.muts.all$genuine.driver[vep.filter] <- F
-
-# For mutations with VEP predictions, mark as genuine driver if impact is high or moderate
-# driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$VEP.impact))] <- FALSE
-# driver.muts.all$genuine.driver[grep("HIGH|MODERATE", driver.muts.all$VEP.impact)] <- TRUE
-# # Oncogenes with CN gain are true drivers, with loss are not:
-# driver.muts.all$genuine.driver[intersect(grep("oncogene", driver.muts.all$Role.in.cancer), which(driver.muts.all$Mutation.Type == "CN amplification"))] <- TRUE
-# driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$Role.in.cancer) & !grepl("oncogene", driver.muts.all$Role.in.cancer) & driver.muts.all$Mutation.Type == "CN amplification")] <- FALSE
-# # Tumour suppressor genes with CN loss are true drivers, with gain are not:
-# driver.muts.all$genuine.driver[intersect(grep("TSG", driver.muts.all$Role.in.cancer), which(driver.muts.all$Mutation.Type == "CN deletion"))] <- TRUE
-# driver.muts.all$genuine.driver[which(!is.na(driver.muts.all$Role.in.cancer) & !grepl("TSG", driver.muts.all$Role.in.cancer) & driver.muts.all$Mutation.Type == "CN deletion")] <- FALSE
-#WriteXLS(driver.muts.all, ExcelFileName = "results/drivers.for.henry.xls", row.names = T)
 
 wgs.pheno$driver.count <- unlist(lapply(wgs.pheno$name, function(x){
   length(which(driver.muts.all$Sample == x & driver.muts.all$genuine.driver))
