@@ -8,7 +8,7 @@ All R code used to analyse genomic, gene expression and methylation data is incl
 
 This code downloads large volumes of data from NCBI GEO and the Cancer Genome Atlas (TCGA). It is best run on a cluster; downloads may take several hours, and combining methylation data from these samples has high memory requirements. Data will be automatically cached as .RData files - contact us to request access to processed RData files.
 
-*** GEO Downloads will not work currently ***
+*** GEO Downloads will not work until after publication ***
 
 Microarray data is stored in private GEO repositories which will be made public on publication. For reviewer access please contact the authors.
 
@@ -51,8 +51,8 @@ Mutation data from TCGA is not open access. It was downloaded under an agreement
 
 Analysis code is written in R. The relevant version numbers used in our analysis are as follows:
 
-* R version 3.4.1
-* Bioconductor version 3.6
+* R version 3.5.0
+* Bioconductor version 3.7
 * Package versions as defined in resources/package.versions.csv
 
 This code depends on many R packages which are publically available. You should be able to install these automatically by running 
