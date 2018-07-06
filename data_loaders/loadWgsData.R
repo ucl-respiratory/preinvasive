@@ -717,8 +717,10 @@ if(file.exists(cache_file)){
   # TCGA SNV data
   #
   # We compare our coding substitutions to TCGA data
-  # Download that here
-  # The file used is generated from the TCGA portal using our list of 200 driver genes as input
+  # Our paper uses data called directly from sequencing using our algorithms
+  # We cannot share this directly as it would violate our data sharing agreemenent with TCGA.
+  # However we can get an appoximation using openly available TCGA data.
+  # The commented code below outlines how to do this - it is not used in our analysis.
   ####################################################################################
   message("Loading TCGA comparative data")
   
@@ -759,15 +761,6 @@ if(file.exists(cache_file)){
   # tcga.snvs <- rbind(tcga.mutect, tcga.varscan, tcga.ss, tcga.muse)
   # tcga.snvs <- tcga.snvs[-which(duplicated(tcga.snvs$uuid)),]
   # 
-  # # This data frame gives a good estimate of mutational burden in coding regions (TCGA uses WXS)
-  # 
-  # # Alternative driver method using TCGA portal downloads:
-  # # tcga.drivers <- read.csv("resources/tcga.driver.genes.csv", header=T, stringsAsFactors=F)
-  # # tcga.drivers$cases <- as.numeric(unlist(lapply(tcga.drivers$X..Affected.Cases.in.Cohort, function(x){
-  # #   unlist(strsplit(x, " / "))[[1]]
-  # # })))
-  # # tcga.drivers$pc <- 100 * tcga.drivers$cases / 504
-  # 
   # 
   # # Calculate mutation rates (i.e. the number of samples with 1+ mutation in a given gene)
   # # Remove multiple mutations per gene, per sample
@@ -788,8 +781,7 @@ if(file.exists(cache_file)){
   # Relative GISTIC data used for comparison with methylation-derived CNA probes in prediction
   x <- downloadTcgaData(
     d_type="Copy Number Segment",
-    w_type = "DNAcopy"#,
-    #cache_dir="./data/wgs/tcga_cnv"
+    w_type = "DNAcopy"
   )
   # tcga.cnas.segmented <- x[[1]]
   tcga.cnas.bands     <- x[[2]]
@@ -826,7 +818,6 @@ if(file.exists(cache_file)){
   ####################################################################################
   message(paste("All data loaded - saving output to", cache_file))
   save(
-    #subs.all, indels.all, rearrangements.all,
     cna.summary.list,
     cnas.segmented, cnas.segmented.mean,
     cnas.genes.summary, cnas.amps, cnas.dels, 
@@ -834,7 +825,7 @@ if(file.exists(cache_file)){
     muts, muts.all, muts.unfiltered, muts.coding, muts.coding.counts,
     tcga.snvs.rates,
     tcga.cnas.segmented, tcga.cnas.segmented.mean,
-    tcga.cnas.bands, tcga.cnas.genes, tcga.cnas.pheno, #tcga.cnas.ploidys,
+    tcga.cnas.bands, tcga.cnas.genes, tcga.cnas.pheno, 
     wgs.pheno, 
     file=cache_file
   )

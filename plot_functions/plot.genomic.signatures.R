@@ -50,64 +50,6 @@ plot.genomic.signatures <- function(filename){
   
   
   
-  # Plot a mean value
-  # df <- data.frame(
-  #   row.names = rownames(fit_res$contribution),
-  #   cis.mean = as.numeric(apply(fit_res$contribution, 1, mean))
-  # )
-  # plot_contribution(df,
-  #                   cancer_signatures,
-  #                   coord_flip = FALSE,
-  #                   mode = "absolute",
-  #                   palette = col_vector[1:dim(cancer_signatures)[2]])
-  # 
-  # # Try TCGA data
-  # tcga.pts <- unique(tcga.snvs$case_id)
-  # tcga.vcfs <- list()
-  # for(pt in tcga.pts){
-  #   pt.snvs <- tcga.snvs[tcga.snvs$case_id == pt,]
-  #   range <- GRanges(
-  #     seqnames = gsub("chr", "", pt.snvs$Chromosome),
-  #     ranges=IRanges(
-  #       start=pt.snvs$Start_Position,
-  #       end=pt.snvs$End_Position
-  #     ),
-  #     paramRangeID=NA,
-  #     REF=DNAStringSet(
-  #       pt.snvs$Reference_Allele
-  #     ),
-  #     ALT=DNAStringSetList(lapply(pt.snvs$Allele, function(x){ DNAStringSet(x)} )),
-  #     QUAL=NA,
-  #     FILTER="PASS"
-  #   )
-  #   tcga.vcfs[[length(tcga.vcfs) + 1]] <- range
-  # }
-  # tcga.vcfs <- GRangesList(tcga.vcfs)
-  # 
-  # tcga.ref_genome <- "BSgenome.Hsapiens.NCBI.GRCh38"
-  # library(tcga.ref_genome, character.only = T)
-  # 
-  # # Plot the spectrum across all samples
-  # tcga.type_occurrences <- mut_type_occurrences(tcga.vcfs, tcga.ref_genome)
-  # plot_spectrum(tcga.type_occurrences)
-  # 
-  # tcga.mut_mat <- mut_matrix(vcf_list = tcga.vcfs[1:10], ref_genome = tcga.ref_genome)
-  # tcga.fit_res <- fit_to_signatures(tcga.mut_mat, cancer_signatures)
-  # 
-  # # Plot contribution barplot
-  # plot_contribution(tcga.fit_res$contribution[select,o],
-  #                   cancer_signatures[,select],
-  #                   coord_flip = FALSE,
-  #                   mode = "relative",
-  #                   palette = col_vector[1:dim(cancer_signatures)[2]]
-  # )
-  # # Repeat as absolute plot
-  # plot_contribution(tcga.fit_res$contribution[select,o],
-  #                   cancer_signatures[,select],
-  #                   coord_flip = FALSE,
-  #                   mode = "absolute",
-  #                   palette = col_vector[1:dim(cancer_signatures)[2]]
-  # )
   
   pdf(paste0(filename, "_all.pdf"))
   # Plot contribution barplot
