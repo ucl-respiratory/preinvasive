@@ -47,6 +47,11 @@ Gene expression and methylation analyses use open-access microarray data downloa
 
 Mutation data from TCGA is not open access. It was downloaded under an agreement between TCGA and the Sanger Institute. Variant calling was performed on raw data using the same methods described in the paper. We are not able to share these data directly with this paper. Should the reader wish to repeat our comparisons with TCGA data, similar results can be obtained using open-access masked TCGA data (removing germline mutations), but please be aware that minor differences may be present.
 
+To create the figure 2 circos plot comparing CIS to TCGA data, and extended data figure 1 assessing TCGA mutational signatures, the user will need to add two additional files in the resources/ directory derived from TCGA data:
+
+* TCGA_prop_samples_with_subs_or_indels_in_gene.txt - tab-delimited text file with two columns representing 1) gene name and 2) proportion of samples in which that gene is affected by a mutation
+* TCGA_trinucleotide_counts.txt - tab-delimited text file containing a 96 x n matrix with sample names for n samples as rows, and base changes with trinucleotide contexts as columns e.g. C.A.in.ACA, C.A.in.ACC, C.A.in.ACG ... The cell entries should be the number of occurrences of each base change/trinucleotide context in each sample.
+
 ## Dependencies
 
 Analysis code is written in R. The relevant version numbers used in our analysis are as follows:
