@@ -47,7 +47,7 @@ if(file.exists(cache_file)){
   
   # Add purity and ploidy data - output from ASCAT analysis
   ascat.output <- read.csv('resources/Ascat_ploidy_purity.csv', stringsAsFactors = F)
-  wgs.pheno$purity <- ascat.output$ABBR_CELL_FRAC[match(wgs.pheno$name, ascat.output$SAMPLE)]
+  wgs.pheno$purity <- ascat.output$curated.purity[match(wgs.pheno$name, ascat.output$SAMPLE)]
 
   # Additionally mark some samples as 'query regressive' - these samples regressed but subsequently showed evidence of new disease on longer follow up 
   # These were identified from our analysis, hence not included in the input pheno file
