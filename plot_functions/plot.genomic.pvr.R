@@ -54,7 +54,7 @@ plot.genomic.pvr <- function(filename){
   plotdata$cna.gene.counts <- as.numeric(apply(cnas.genes.summary[,wgs.pheno$name], 2, function(x){ sum(abs(x), na.rm=T)}))
   
   # Proportion of mutations which are clonal
-  plotdata$prop.clonal <- plotdata$clonal.muts / (plotdata$clonal.muts + plotdata$subclonal.muts)
+  plotdata$prop.clonal <- 100*plotdata$clonal.muts / (plotdata$clonal.muts + plotdata$subclonal.muts)
   
   
   # For this analysis, remove the 'query' regressives which later turned out to progress
