@@ -46,7 +46,8 @@ compare.fn <- function(modelinfo, dependent_variable, compared_variable, fixed_e
     
     
     boxplot(modelinfo[,(colnames(modelinfo)==dependent_variable)] ~ modelinfo[,(colnames(modelinfo)==compared_variable)],
-            add=F, notch=T, at=c(1.15,1.85), range=0, main=title, boxwex=1*1*0.5)
+            add=F, notch=T, at=c(1.15,1.85), range=0, ylab=title, boxwex=1*1*0.5,
+            names=c("Regressive", "Progressive"))
     stripchart(modelinfo[,(colnames(modelinfo)==dependent_variable)] ~ modelinfo[,(colnames(modelinfo)==compared_variable)],
                vertical=T, pch=16, col=c("green", "red"), ylab=dependant_variable,
                method=strip.method, at=c(1.15,1.85), add=T, cex=2)
@@ -55,18 +56,18 @@ compare.fn <- function(modelinfo, dependent_variable, compared_variable, fixed_e
     }
     
     # Mark the 'query regressive' samples in orange
-    sel.qr <- which(modelinfo$query.reg == 1)
-    points(
-      rep(0.75,length(sel.qr)),
-      modelinfo[sel.qr, dependent_variable],
-      col='orange', cex=2, pch=8
-    )
-    # Mark the other odd sample in blue (PD21908a)
-    sel.pd21908a <- which(modelinfo$name == "PD21908a")
-    points(
-      rep(0.75,length(sel.pd21908a)),
-      modelinfo[sel.pd21908a, dependent_variable],
-      col='blue', cex=2, pch=8
-    )
+    # sel.qr <- which(modelinfo$query.reg == 1)
+    # points(
+    #   rep(0.75,length(sel.qr)),
+    #   modelinfo[sel.qr, dependent_variable],
+    #   col='orange', cex=2, pch=8
+    # )
+    # # Mark the other odd sample in blue (PD21908a)
+    # sel.pd21908a <- which(modelinfo$name == "PD21908a")
+    # points(
+    #   rep(0.75,length(sel.pd21908a)),
+    #   modelinfo[sel.pd21908a, dependent_variable],
+    #   col='blue', cex=2, pch=8
+    # )
   }
 }
