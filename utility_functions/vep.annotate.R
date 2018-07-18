@@ -27,7 +27,7 @@ vep.annotate <- function(vep.muts){
   stop_for_status(r)
   
   # use this if you get a simple nested list back, otherwise inspect its structure
-  x <- data.frame(t(sapply(content(r),c)))
+  x <- data.frame(t(sapply(httr::content(r),c)))
   #head(fromJSON(toJSON(content(r))))
   
   

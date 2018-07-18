@@ -128,7 +128,8 @@ if(file.exists(cache_file)){
       tumour.reads=tumour.reads,
       depth=depth,
       exonic=grepl("exon", vd),
-      protein.change=gsub("p.", "", str_extract(vd, "p.[A-Z][0-9]+[A-Z]"), fixed = T)
+      protein.change=gsub("p.", "", str_extract(vd, "p.[A-Z][0-9]+[A-Z]"), fixed = T),
+      cds.mut=str_extract(vd, "c[.][0-9-]+[A-Z]>[A-Z]")
     )
     
     
@@ -174,7 +175,8 @@ if(file.exists(cache_file)){
       tumour.reads=NA,
       depth=NA,
       exonic=grepl("exon", vd),
-      protein.change=gsub("p.", "", str_extract(vd, "p.[A-Z][0-9]+[A-Z]"), fixed = T)
+      protein.change=gsub("p.", "", str_extract(vd, "p.[A-Z][0-9]+[A-Z]"), fixed = T),
+      cds.mut=str_extract(vd, "c[.][0-9a-zA-Z-_>]+[A-Z]")
     )
     
     # Merge subs and indels
@@ -265,6 +267,7 @@ if(file.exists(cache_file)){
           depth=pileup[sel.missing, paste0(sample, "_DEP")],
           exonic= pileup$VD[sel.missing],
           protein.change=pileup$Protein[sel.missing],
+          cds.mut=pileup$CDS[sel.missing],
           filters.passed=T,
           mid=pileup$mid[sel.missing]
         )
@@ -341,6 +344,7 @@ if(file.exists(cache_file)){
     depth=NA,
     exonic=grepl("exon", rearrangements.all$region1) | grepl("exon", rearrangements.all$region2),
     protein.change=NA,
+    cds.mut=NA,
     filters.passed=T,
     translocation.partner=rearrangements.all$gene2,
     mid=paste(rearrangements.all$chr1, rearrangements.all$start1, rearrangements.all$start2, rearrangements.all$chr2, rearrangements.all$start2, rearrangements.all$end2),

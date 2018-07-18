@@ -657,7 +657,7 @@ df <- data.frame(
   filters="PASS",
   asmd=140,
   clpm=0,
-  vaf=NA,ref.reads=NA,alt.reads=NA,tumour.reads=NA,depth=NA,exonic=NA,protein.change=NA,filters.passed=T,mid=NA,translocation.partner=NA,chr2=NA,start2=NA,end2=NA
+  vaf=NA,ref.reads=NA,alt.reads=NA,tumour.reads=NA,depth=NA,exonic=NA,protein.change=NA,cds.mut=NA,filters.passed=T,mid=NA,translocation.partner=NA,chr2=NA,start2=NA,end2=NA
 )
 muts.all.cn <- rbind(
   muts.all[which(muts.all$type %in% c("missense", "nonsense", "start_lost", "stop_lost", "ess_splice", "splice_region", "frameshift", "inframe", "SO:0000010:protein_coding", "CN amplification", "CN deletion", "Rearrangement")),]
@@ -679,6 +679,7 @@ driver.muts <- lapply(driver.genes.sorted, function(x){
     Reference.Allele=m$ref,
     Variant.Allele=m$alt,
     Protein.Change=m$protein.change,
+    CDS.Mutation=m$cds.mut,
     Transloc.Chr=m$chr2,
     Transloc.Start=m$start2,
     Transloc.End=m$end2,
@@ -693,41 +694,8 @@ driver.muts <- driver.muts[which(!is.na(driver.muts))]
 # Find driver counts per sample for prog vs reg analysis
 driver.muts.all <- data.table::rbindlist(driver.muts)
 
-# Annotate with gene function from driver genes list
-driver.muts.all$Role.in.Cancer <- driver.genes.info$Role.in.Cancer[match(driver.muts.all$Gene, driver.genes.info$Gene.Symbol)]
-driver.muts.all$CGC.Tier <- driver.genes.info$Tier[match(driver.muts.all$Gene, driver.genes.info$Gene.Symbol)]
-driver.muts.all$Validated.Mut.Types <- driver.genes.info$Mutation.Types[match(driver.muts.all$Gene, driver.genes.info$Gene.Symbol)]
-driver.muts.all$Validated.Transloc.Partner <- driver.genes.info$Translocation.Partner[match(driver.muts.all$Gene, driver.genes.info$Gene.Symbol)]
-# Add VEP impact data (exclude CN changes from this)
-sel <- which(!is.na(driver.muts.all$Reference.Allele))
-vep.muts <- vep.annotate(driver.muts.all[sel,])
-driver.muts.all$VEP.impact <- NA
-driver.muts.all$VEP.impact[sel] <- vep.muts$vep.impact
-
-# Add a flag for genuine drivers:
-driver.muts.all$genuine.driver <- F
-
-# Check the mutation type against CGC validated mutation types
-# Types are: A, D, Mis, N, F, T, S, O
-driver.muts.all$genuine.driver[intersect(grep("A", driver.muts.all$Validated.Mut.Types), which(driver.muts.all$Mutation.Type == "CN amplification"))] <- T
-driver.muts.all$genuine.driver[intersect(grep("D", driver.muts.all$Validated.Mut.Types), which(driver.muts.all$Mutation.Type == "CN deletion"))] <- T
-driver.muts.all$genuine.driver[intersect(grep("Mis", driver.muts.all$Validated.Mut.Types), which(driver.muts.all$Mutation.Type == "missense"))] <- T
-driver.muts.all$genuine.driver[intersect(grep("N", driver.muts.all$Validated.Mut.Types), which(driver.muts.all$Mutation.Type == "nonsense"))] <- T
-driver.muts.all$genuine.driver[intersect(grep("F", driver.muts.all$Validated.Mut.Types), which(driver.muts.all$Mutation.Type == "frameshift"))] <- T
-driver.muts.all$genuine.driver[intersect(grep("S", driver.muts.all$Validated.Mut.Types), grep("splice", driver.muts.all$Mutation.Type))] <- T
-# For tranlocations also check the translocated gene is the right gene
-rearr.filt <- which(
-  driver.muts.all$Mutation.Type == "Rearrangement" &
-    grepl("T", driver.muts.all$Validated.Mut.Types) &
-    driver.muts.all$Transloc.Gene == driver.muts.all$Validated.Transloc.Partner
-)
-if(length(rearr.filt) > 0){
-  driver.muts.all$genuine.driver[rearr.filt] <- T
-}
-
-# As a further check, filter out any mutation with a VEP score less than moderate/high
-vep.filter <- !is.na(driver.muts.all$VEP.impact) & !grepl("HIGH|MODERATE", driver.muts.all$VEP.impact)
-driver.muts.all$genuine.driver[vep.filter] <- F
+# Annotate genuine drivers
+driver.muts.all <- annotate.drivers(driver.muts.all)
 
 wgs.pheno$driver.count <- unlist(lapply(wgs.pheno$name, function(x){
   length(which(driver.muts.all$Sample == x & driver.muts.all$genuine.driver))
