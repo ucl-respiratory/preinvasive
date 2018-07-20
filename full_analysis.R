@@ -845,18 +845,18 @@ for(show.legends in c(T, F)){
   )
   
   ##########################################################################
-  # Supplementary data file 3: Pathways implicated in progressive vs regressive analysis
+  # Supplementary data file 3: List of putative driver genes
+  # This is an input file for our analysis - simply copy across
+  ##########################################################################
+  file.copy("resources/driver.genes.xls", paste0(results_dir, "Sup_Data3_driver_gene_list.xls"), overwrite = T)
+  
+  ##########################################################################
+  # Supplementary data file 4: Pathways implicated in progressive vs regressive analysis
   ##########################################################################
   WriteXLS(
     c("gxn.gage.summary", "meth.gage.summary"),
-    ExcelFileName = paste(results_dir,"Sup_Data3_pathways.xlsx", sep=""), row.names = T, AdjWidth = T
+    ExcelFileName = paste(results_dir,"Sup_Data4_pathways.xlsx", sep=""), row.names = T, AdjWidth = T
   )
-  
-  ##########################################################################
-  # Supplementary data file 4: List of putative driver genes
-  # This is an input file for our analysis - simply copy across
-  ##########################################################################
-  file.copy("resources/driver.genes.xls", paste0(results_dir, "Sup_Data4_driver_gene_list.xls"), overwrite = T)
   
   ##########################################################################
   # Supplementary Table 1: Biological and experimental details of all samples
