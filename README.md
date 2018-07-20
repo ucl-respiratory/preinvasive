@@ -78,3 +78,7 @@ The ChAMP package contains issues in plotting CNA profiles. As such, please inst
 library(devtools)
 install_github("ucl-respiratory/ChAMP")
 ```
+
+## Support
+
+For further information and support please contact a.pennycuick@ucl.ac.uk
