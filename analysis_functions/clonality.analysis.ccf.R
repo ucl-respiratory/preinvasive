@@ -81,7 +81,7 @@ if(file.exists(clones.cache.file)){
     # -> ref = 2alt/CCF - alt
     sc.vafs <- sample.muts[,c("chr", "start", "ref.reads", "alt.reads", "ccf.est")]
     sc.vafs$ccf.est <- 100*sc.vafs$ccf.est / 2
-    sc.vafs$ref.reads <- (2*sc.vafs$alt.reads / sc.vafs$ccf.est) - sc.vafs$alt.reads
+    sc.vafs$ref.reads <- (sc.vafs$alt.reads / (sc.vafs$ccf.est/100)) - sc.vafs$alt.reads
     sc = sciClone(
       vafs=sc.vafs,
       sampleNames=sample,
