@@ -51,7 +51,8 @@ pkgs <- c("gdata",
           "foreach",
           "doParallel", 
           "GenVisR",
-          "MutationalPatterns")
+          "MutationalPatterns",
+          "ggbio")
 
 # By default the latest version of these packages will be installed. 
 # Versions used to conduct the analysis can be found in the resources folder.
