@@ -16,19 +16,24 @@ plot.meth.heatmap <- function(filename){
     status=mpheno$Sample_Group
   )
   m.annot_colors <- list(
-    status=c(Progressive="red", Regressive="green", Control="blue"),
+    status=c(Progressive=pr.cols[2], Regressive=pr.cols[1], Control=pr.cols[3]),
     pack.years=smoking_group_names,
     age.group=age_group_names,
-    gender=c("F"="pink", "M"="cyan"),
+    gender=c("F"="pink", "M"="lightblue"),
     COPD=c("N"="darkgreen", "Y"="orange")
   )
   rownames(m.annot) <- colnames(mdata.sig)
   
   pdf(filename)
-  pheatmap(removeOutliers(mdata.sig), cluster_rows=T, cluster_cols=T, scale="row", main=paste("Methylation (Top ",dim(mdata.sig)[1]," MVPs)", sep=""),
+  pheatmap(mdata.sig, cluster_rows=T, cluster_cols=T, scale="row", main=paste("Methylation (Top ",dim(mdata.sig)[1]," MVPs)", sep=""),
            annotation_col=m.annot, treeheight_row=0, treeheight_col=0, show_rownames=F, show_colnames=F,
            annotation_colors=m.annot_colors,
-           color=hmcol2, legend=F)
+           color=hmcol2, legend=T)
+  # Update following reviewer comments (WIP):
+  # pheatmap(mdata.sig, cluster_rows=T, cluster_cols=T, scale="row", main=paste("Methylation (Top ",dim(mdata.sig)[1]," MVPs)", sep=""),
+  #          annotation_col=m.annot, treeheight_row=0, treeheight_col=0, show_rownames=F, show_colnames=F,
+  #          annotation_colors=m.annot_colors,
+  #          color=hmcol2, legend=T)
   dev.off()
 }
 

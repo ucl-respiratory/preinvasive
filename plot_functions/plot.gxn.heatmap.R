@@ -15,18 +15,23 @@ plot.gxn.heatmap <- function(filename){
     status=c("Regressive", "Progressive")[gpheno.d$progression+1]
   )
   g.annot_colors <- list(
-    status=c(Progressive="red", Regressive="green"),
+    status=c(Progressive=pr.cols[2], Regressive=pr.cols[1]),
     pack.years=smoking_group_names,
     age.group=age_group_names,
-    gender=c("F"="pink", "M"="cyan"),
+    gender=c("F"="pink", "M"="lightblue"),
     COPD=c("N"="darkgreen", "Y"="orange")
   )
   rownames(g.annot) <- colnames(sig_genes)
   
   pdf(filename)
-  pheatmap(removeOutliers(sig_genes), cluster_rows=T, cluster_cols=T, scale="row", main=paste("Gene Expression (",dim(sig_genes)[1]," genes)", sep=""),
+  pheatmap(sig_genes, cluster_rows=T, cluster_cols=T, scale="row", main=paste("Gene Expression (",dim(sig_genes)[1]," genes)", sep=""),
            annotation_col=g.annot, treeheight_row=0, treeheight_col=0, show_rownames=F, show_colnames=F,
            annotation_colors=g.annot_colors,
-           color=hmcol, legend=F)
+           color=hmcol, legend=T)
+  # Update following review (WIP):
+  # pheatmap(sig_genes, cluster_rows=T, cluster_cols=T, scale="row", main=paste("Gene Expression (",dim(sig_genes)[1]," genes)", sep=""),
+  #          annotation_col=g.annot, treeheight_row=0, treeheight_col=0, show_rownames=F, show_colnames=F,
+  #          annotation_colors=g.annot_colors,
+  #          color=hmcol, legend=T)
   dev.off()
 }

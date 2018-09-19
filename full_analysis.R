@@ -62,6 +62,12 @@ source('data_loaders/loadGeneData.R')
 source('data_loaders/loadMethData.R')
 source('data_loaders/loadWgsData.R')
 
+# Brief count of samples/patients:
+print(paste("Gene expression dataset:", dim(gpheno)[1], "samples from", length(unique(gpheno$Patient)), "patients"))
+print(paste("Methylation dataset:", dim(mpheno)[1], "samples from", length(unique(mpheno$Patient_ID)), "patients - includes", length(which(mpheno$Sample_Group == "Control")), "control samples"))
+print(paste("WGS dataset:", dim(wgs.pheno)[1], "samples from", length(unique(wgs.pheno$Patient)), "patients"))
+print(paste("Total:", dim(gpheno)[1] + dim(mpheno)[1] + dim(wgs.pheno)[1], "samples from", length(unique(gpheno$Patient)) + length(unique(mpheno$Patient_ID)) + length(unique(wgs.pheno$Patient)), "patients"))
+
 # Load CIN genes - both the CIN70 signature, and CIN70 with cell-cycle genes removed
 load('resources/cin_genes.RData')
 
@@ -78,7 +84,8 @@ driver.genes <- driver.genes.info$Gene.Symbol
 #   e.g. colour palettes
 ##########################################################################
 # Define colour palettes for heatmaps: hmcol is green/red, hmcol2 is yellow/blue
-hmcol <- colorRampPalette(c("Green","Black","Red"))(256)
+#hmcol <- colorRampPalette(c("Green","Black","Red"))(256)
+hmcol <- colorRampPalette(rev(brewer.pal(n = 7, name = "PuOr")))(256)
 hmcol2 <- colorRampPalette(rev(brewer.pal(n = 7, name = "RdYlBu")))(256)
 # Colours for differentiating patients:
 pt_cols <- c("#ff0000", "#cc0000", "#594343", "#7f4840", "#4c2213", "#f2c6b6", "#f26100", "#7f3300", "#f2aa79", "#593a16", "#8c7c69", "#bf8000", "#665200", "#d9c36c", "#e5d600", "#4a592d", "#e1ffbf", "#65b359", "#00cc1b", "#60806c", "#00331b", "#26332d", "#79f2ca", "#008c83", "#005c73", "#40d9ff", "#002233", "#0088ff", "#003059", "#668fcc", "#000e66", "#4059ff", "#5e53a6", "#3c394d", "#4700b3", "#290033", "#e63df2", "#967399", "#8c2377", "#ffbff2", "#331a27", "#660029", "#cc3370", "#ff4059", "#e6acb4")
@@ -88,6 +95,10 @@ cols.cn <- c("#2b69ca", "#68aeff", "#ffffff", "#ff5468", "#ff0825")
 myPalette <- c("green", "red", "blue", "yellow", "black", "magenta", "cyan", "orange")
 # Colours for TCGA plots
 tcga.cols <- c('darkgreen', 'green', 'red', 'orange', 'blue')
+
+# Colors used for progressive/regressive in plots
+# The third entry here is for control samples
+pr.cols <- c("green", "red", "blue")
 
 # Define colours used for clinical variables
 pal <- brewer.pal(8, 'Accent')
@@ -786,9 +797,10 @@ for(show.legends in c(T, F)){
   plot.genomic.clonality.matrix(paste(results_dir, 'Ext_Fig5_multisample_clonality_matrix.pdf', sep=''))
   
   ##########################################################################
-  # Extended data Figure 6: PvR Circos plot
+  # Extended data Figure 6: PvR comparison with TCGA Ca vs Control
   ##########################################################################
-  plot.pvr.circos(paste(results_dir, 'Ext_Fig6_pvr_circos.png', sep=''))
+  #plot.pvr.circos(paste(results_dir, 'Ext_Fig6_pvr_circos.png', sep=''))
+  plot.overlaps(paste0(results_dir, 'Ext_Fig6A_dmrs.pdf'), paste0(results_dir, 'Ext_Fig6B_cnas.pdf'))
   
   ##########################################################################
   # Extended data Figure 7: Extended PCA plots
