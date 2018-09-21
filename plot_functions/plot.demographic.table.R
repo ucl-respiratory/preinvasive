@@ -284,5 +284,79 @@ plot.demographic.table <- function(filename){
   library(WriteXLS)
   WriteXLS('df', ExcelFileName=filename, row.names=T)
   
+  # Make an additional table to check for significant differences in clinical characteristics between progressive and regressive within each cohort
+  df.p <- data.frame(matrix(nrow=5, ncol=5))
+  rownames(df.p) <- c(
+    "Gender Fisher P",
+    "COPD Fisher P",
+    "Prev Hx Ca Fisher P",
+    "Smoking Wilcox P",
+    "Age Wilcox P"
+  )
+  colnames(df.p) <- c("GXN.d", "GXN.v", "Meth.d", "Meth.v", "WGS")
+  m <- matrix(
+    c(length(which(gpheno.d$progression == 1 & gpheno.d$Gender == "M")), length(which(gpheno.d$progression == 0 & gpheno.d$Gender == "M")), length(which(gpheno.d$progression == 1 & gpheno.d$Gender == "F")), length(which(gpheno.d$progression == 0 & gpheno.d$Gender == "F"))),
+    nrow=2
+    
+  )
+  df.p["Gender Fisher P", "GXN.d"] <- fisher.test(matrix(
+    as.numeric(c(df["Gender: M", "gxn.d.prog"], df["Gender: F", "gxn.d.prog"], df["Gender: M", "gxn.d.reg"], df["Gender: F", "gxn.d.reg"])), ncol = 2
+  ))$p.value
+  df.p["Gender Fisher P", "GXN.v"] <- fisher.test(matrix(
+    as.numeric(c(df["Gender: M", "gxn.v.prog"], df["Gender: F", "gxn.v.prog"], df["Gender: M", "gxn.v.reg"], df["Gender: F", "gxn.v.reg"])), ncol = 2
+  ))$p.value
+  df.p["Gender Fisher P", "Meth.d"] <- fisher.test(matrix(
+    as.numeric(c(df["Gender: M", "methyl.d.prog"], df["Gender: F", "methyl.d.prog"], df["Gender: M", "methyl.d.reg"], df["Gender: F", "methyl.d.reg"])), ncol = 2
+  ))$p.value
+  df.p["Gender Fisher P", "Meth.v"] <- fisher.test(matrix(
+    as.numeric(c(df["Gender: M", "methyl.v.prog"], df["Gender: F", "methyl.v.prog"], df["Gender: M", "methyl.v.reg"], df["Gender: F", "methyl.v.reg"])), ncol = 2
+  ))$p.value
+  df.p["Gender Fisher P", "WGS"] <- fisher.test(matrix(
+    as.numeric(c(df["Gender: M", "seq.prog"], df["Gender: F", "seq.prog"], df["Gender: M", "seq.reg"], df["Gender: F", "seq.reg"])), ncol = 2
+  ))$p.value
+  
+  df.p["COPD Fisher P", "GXN.d"] <- fisher.test(matrix(
+    as.numeric(c(df["COPD: Y", "gxn.d.prog"], df["COPD: N", "gxn.d.prog"], df["COPD: Y", "gxn.d.reg"], df["COPD: N", "gxn.d.reg"])), ncol = 2
+  ))$p.value
+  df.p["COPD Fisher P", "GXN.v"] <- fisher.test(matrix(
+    as.numeric(c(df["COPD: Y", "gxn.v.prog"], df["COPD: N", "gxn.v.prog"], df["COPD: Y", "gxn.v.reg"], df["COPD: N", "gxn.v.reg"])), ncol = 2
+  ))$p.value
+  df.p["COPD Fisher P", "Meth.d"] <- fisher.test(matrix(
+    as.numeric(c(df["COPD: Y", "methyl.d.prog"], df["COPD: N", "methyl.d.prog"], df["COPD: Y", "methyl.d.reg"], df["COPD: N", "methyl.d.reg"])), ncol = 2
+  ))$p.value
+  df.p["COPD Fisher P", "Meth.v"] <- fisher.test(matrix(
+    as.numeric(c(df["COPD: Y", "methyl.v.prog"], df["COPD: N", "methyl.v.prog"], df["COPD: Y", "methyl.v.reg"], df["COPD: N", "methyl.v.reg"])), ncol = 2
+  ))$p.value
+  df.p["COPD Fisher P", "WGS"] <- fisher.test(matrix(
+    as.numeric(c(df["COPD: Y", "seq.prog"], df["COPD: N", "seq.prog"], df["COPD: Y", "seq.reg"], df["COPD: N", "seq.reg"])), ncol = 2
+  ))$p.value
+  
+  df.p["Prev Hx Ca Fisher P", "GXN.d"] <- fisher.test(matrix(
+    as.numeric(c(df["Previous history of lung cancer: Y", "gxn.d.prog"], df["Previous history of lung cancer: N", "gxn.d.prog"], df["Previous history of lung cancer: Y", "gxn.d.reg"], df["Previous history of lung cancer: N", "gxn.d.reg"])), ncol = 2
+  ))$p.value
+  df.p["Prev Hx Ca Fisher P", "GXN.v"] <- fisher.test(matrix(
+    as.numeric(c(df["Previous history of lung cancer: Y", "gxn.v.prog"], df["Previous history of lung cancer: N", "gxn.v.prog"], df["Previous history of lung cancer: Y", "gxn.v.reg"], df["Previous history of lung cancer: N", "gxn.v.reg"])), ncol = 2
+  ))$p.value
+  df.p["Prev Hx Ca Fisher P", "Meth.d"] <- fisher.test(matrix(
+    as.numeric(c(df["Previous history of lung cancer: Y", "methyl.d.prog"], df["Previous history of lung cancer: N", "methyl.d.prog"], df["Previous history of lung cancer: Y", "methyl.d.reg"], df["Previous history of lung cancer: N", "methyl.d.reg"])), ncol = 2
+  ))$p.value
+  df.p["Prev Hx Ca Fisher P", "Meth.v"] <- fisher.test(matrix(
+    as.numeric(c(df["Previous history of lung cancer: Y", "methyl.v.prog"], df["Previous history of lung cancer: N", "methyl.v.prog"], df["Previous history of lung cancer: Y", "methyl.v.reg"], df["Previous history of lung cancer: N", "methyl.v.reg"])), ncol = 2
+  ))$p.value
+  df.p["Prev Hx Ca Fisher P", "WGS"] <- fisher.test(matrix(
+    as.numeric(c(df["Previous history of lung cancer: Y", "seq.prog"], df["Previous history of lung cancer: N", "seq.prog"], df["Previous history of lung cancer: Y", "seq.reg"], df["Previous history of lung cancer: N", "seq.reg"])), ncol = 2
+  ))$p.value
+  
+  df.p["Smoking Wilcox P", "GXN.d"] <- wilcox.test(gpheno.d$Pack.years ~ gpheno.d$progression)$p.value
+  df.p["Smoking Wilcox P", "GXN.v"] <- wilcox.test(gpheno.v$Pack.years ~ gpheno.v$progression)$p.value
+  df.p["Smoking Wilcox P", "Meth.d"] <- wilcox.test(mpheno.d$Pack.years ~ mpheno.d$progression)$p.value
+  df.p["Smoking Wilcox P", "Meth.v"] <- wilcox.test(mpheno.v$Pack.years ~ mpheno.v$progression)$p.value
+  df.p["Smoking Wilcox P", "WGS"] <- wilcox.test(wgs.pheno$Pack.years ~ wgs.pheno$progression)$p.value
+  
+  df.p["Age Wilcox P", "GXN.d"] <- wilcox.test(gpheno.d$Age.at.diagnosis ~ gpheno.d$progression)$p.value
+  df.p["Age Wilcox P", "GXN.v"] <- wilcox.test(gpheno.v$Age.at.diagnosis ~ gpheno.v$progression)$p.value
+  df.p["Age Wilcox P", "Meth.d"] <- wilcox.test(mpheno.d$Age.at.specimen.collected ~ mpheno.d$progression)$p.value
+  df.p["Age Wilcox P", "Meth.v"] <- wilcox.test(mpheno.v$Age.at.specimen.collected ~ mpheno.v$progression)$p.value
+  df.p["Age Wilcox P", "WGS"] <- wilcox.test(wgs.pheno$Age.at.specimen.profiled ~ wgs.pheno$progression)$p.value
 }
 
