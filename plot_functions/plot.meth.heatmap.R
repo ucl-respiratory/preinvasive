@@ -28,7 +28,7 @@ plot.meth.heatmap <- function(filename){
   pheatmap(mdata.sig, cluster_rows=T, cluster_cols=T, scale="row", main=paste("Methylation (Top ",dim(mdata.sig)[1]," MVPs)", sep=""),
            annotation_col=m.annot, treeheight_row=0, treeheight_col=0, show_rownames=F, show_colnames=F,
            annotation_colors=m.annot_colors,
-           color=hmcol2, legend=T)
+           color=hmcol2, legend=F)
   # Update following reviewer comments (WIP):
   # pheatmap(mdata.sig, cluster_rows=T, cluster_cols=T, scale="row", main=paste("Methylation (Top ",dim(mdata.sig)[1]," MVPs)", sep=""),
   #          annotation_col=m.annot, treeheight_row=0, treeheight_col=0, show_rownames=F, show_colnames=F,

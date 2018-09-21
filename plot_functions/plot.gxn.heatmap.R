@@ -27,7 +27,7 @@ plot.gxn.heatmap <- function(filename){
   pheatmap(sig_genes, cluster_rows=T, cluster_cols=T, scale="row", main=paste("Gene Expression (",dim(sig_genes)[1]," genes)", sep=""),
            annotation_col=g.annot, treeheight_row=0, treeheight_col=0, show_rownames=F, show_colnames=F,
            annotation_colors=g.annot_colors,
-           color=hmcol, legend=T)
+           color=hmcol, legend=F)
   # Update following review (WIP):
   # pheatmap(sig_genes, cluster_rows=T, cluster_cols=T, scale="row", main=paste("Gene Expression (",dim(sig_genes)[1]," genes)", sep=""),
   #          annotation_col=g.annot, treeheight_row=0, treeheight_col=0, show_rownames=F, show_colnames=F,
