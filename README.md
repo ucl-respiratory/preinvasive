@@ -1,6 +1,6 @@
 ## Preinvasive Study
 
-This repository contains the code used in our publication "Deciphering the genomic, epigenomic and transcriptomic landscapes of pre-invasive lung cancer lesions". 
+This repository contains the code used in our publication "Deciphering the genomic, epigenomic and transcriptomic landscapes of pre-invasive lung cancer lesions" by Teixeira, Pipinikas, Pennycuick et. al., published in Nature Medicine 2019. The full publication is located at http://dx.doi.org/10.1038/s41591-018-0323-0 - please cite this publication if using any code from this repository.
 
 All R code used to analyse genomic, gene expression and methylation data is included.
 
@@ -8,11 +8,7 @@ All R code used to analyse genomic, gene expression and methylation data is incl
 
 This code downloads large volumes of data from NCBI GEO and the Cancer Genome Atlas (TCGA). It is best run on a cluster; downloads may take several hours, and combining methylation data from these samples has high memory requirements. Data will be automatically cached as .RData files - contact us to request access to processed RData files.
 
-*** GEO Downloads will not work until after publication ***
-
-Microarray data is stored in private GEO repositories which will be made public on publication. For reviewer access please contact the authors.
-
-With reviewer access to relevant GEO datasets, files should be downloaded as follows:
+Files should be downloaded from GEO as follows:
 
 ```
 https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE94611&format=file&file=GSE94611%5Fnon%5Fnormalized%2Etxt%2Egz downloaded to data/gxn/discovery/gxn.discovery.txt
@@ -26,7 +22,7 @@ All processing functions and downloading of TCGA data are handled by the scripts
 
 ## Genomic Data
 
-Raw genomic data is stored in the European Genome Archive (EGA), accession number EGAD00001003883. Due to the potentially identifiable nature of the data, this is not openly accessible. To recreate this analysis, the reader must go through the EGA data access procedure. 
+Raw genomic data is stored in the European Genome Archive (EGA), accession number EGAD00001003883. Due to the potentially identifiable nature of the data, this is not openly accessible. To recreate this analysis, the reader must go through the EGA data access procedure.
 
 This code repository does not cover variant calling; this is performed using established tools freely available at https://github.com/cancerit, as described in the Methods section of our paper. Code in this repository works from downstream VCF files, which the reader must generate from BAM files downloaded from EGA.
 
@@ -64,12 +60,12 @@ Analysis code is written in R. The relevant version numbers used in our analysis
 * Bioconductor version 3.7
 * Package versions as defined in resources/package.versions.csv
 
-This code depends on many R packages which are publically available. You should be able to install these automatically by running 
+This code depends on many R packages which are publically available. You should be able to install these automatically by running
 
 ```r
 Rscript install_dependencies.R
 ```
-  
+
 This installs the latest versions of all required packages. Should you experience any issues we recommend installing the specific versions detailed in resources/package.versions.csv.
 
 The ChAMP package contains issues in plotting CNA profiles. As such, please install ChAMP from the authors' account using the following (as per the install_dependencies.R file):
@@ -81,4 +77,4 @@ install_github("ucl-respiratory/ChAMP")
 
 ## Support
 
-For further information and support please contact a.pennycuick@ucl.ac.uk
+For further information and support please contact a.pennycuick(at)ucl.ac.uk
